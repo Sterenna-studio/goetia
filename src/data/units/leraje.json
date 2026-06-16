@@ -1,0 +1,24 @@
+{
+  "id": "leraje",
+  "demonName": "Leraje",
+  "rank": "Marquis",
+  "legions": 30,
+  "tier": 1,
+  "label": "Leraje l'Archer",
+  "description": "Marquis de l'Enfer commandant 30 légions. Cause batailles et disputes ; ses flèches gangrènent les blessures.",
+  "sourceBodyTags": ["human", "soldier"],
+  "sourceSoulQualities": ["common", "potent"],
+  "cost": {
+    "corpses": 1,
+    "souls": 1,
+    "ticksToProduce": 30
+  },
+  "stats": {
+    "hp": 20,
+    "speed": 1.2,
+    "damage": 8,
+    "range": 80,
+    "aggro": 60
+  },
+  "behavior": "ranged"
+}
