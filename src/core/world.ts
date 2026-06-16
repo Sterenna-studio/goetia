@@ -14,7 +14,6 @@ import type {
   Hauler,
   DemonName,
   Pit,
-  Unit,
   Enemy,
 } from './types';
 
@@ -40,8 +39,6 @@ export function createWorld(): WorldState {
     },
   };
 }
-
-// --- Entity helpers ---
 
 export function spawnCorpse(
   world: WorldState,

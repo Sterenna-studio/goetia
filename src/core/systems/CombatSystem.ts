@@ -3,7 +3,7 @@
 // Ciblage, déplacement, attaque. Ennemis morts → Corpse.
 // ============================================================
 
-import type { GameSystem, SimContext, WorldState, Unit, Enemy } from '../types';
+import type { GameSystem, SimContext, WorldState, Enemy } from '../types';
 import { dist, moveToward, spawnCorpse } from '../world';
 
 const ATTACK_COOLDOWN_TICKS = 5;

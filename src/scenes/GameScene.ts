@@ -7,12 +7,12 @@ import Phaser from 'phaser';
 import { createWorld, spawnCorpse, spawnHauler, spawnPit, spawnEnemy } from '../core/world';
 import { Simulation } from '../core/sim';
 import type { WorldState } from '../core/types';
+import { initHUD, updateHUD } from '../ui/hud';
 
 export class GameScene extends Phaser.Scene {
   private world!: WorldState;
   private sim!: Simulation;
   private gfx!: Phaser.GameObjects.Graphics;
-  private debugText!: Phaser.GameObjects.Text;
 
   constructor() { super({ key: 'GameScene' }); }
 
@@ -20,11 +20,8 @@ export class GameScene extends Phaser.Scene {
     this.world = createWorld();
     this.sim = new Simulation();
     this.gfx = this.add.graphics();
-    this.debugText = this.add.text(12, 12, '', {
-      fontSize: '13px',
-      color: '#aaffaa',
-      fontFamily: 'monospace',
-    });
+
+    initHUD();
 
     // Scène test MVP
     spawnPit(this.world, { x: 640, y: 360 });
@@ -40,7 +37,7 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     this.sim.update(this.world, delta);
     this._render();
-    this._updateHUD();
+    updateHUD(this.world);
   }
 
   private _render(): void {
@@ -68,29 +65,52 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Âmes
+    // Âmes flottantes
     for (const soul of this.world.souls.values()) {
       g.fillStyle(0x88ccff, soul.stability01);
       g.fillCircle(soul.pos.x, soul.pos.y - 12, 4);
     }
 
-    // Haulers (Bifrons)
+    // Haulers (Bifrons) — triangle violet
     for (const hauler of this.world.haulers.values()) {
-      g.fillStyle(0x9966cc);
+      g.fillStyle(hauler.carriedCorpseId ? 0xcc88ff : 0x9966cc);
       g.fillTriangle(
         hauler.pos.x, hauler.pos.y - 10,
         hauler.pos.x - 8, hauler.pos.y + 8,
         hauler.pos.x + 8, hauler.pos.y + 8
       );
+      // Ligne vers la cible si en mouvement
+      if (hauler.task.kind === 'pickup') {
+        const c = this.world.corpses.get(hauler.task.corpseId);
+        if (c) {
+          g.lineStyle(1, 0x9966cc, 0.3);
+          g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y);
+        }
+      }
+      if (hauler.task.kind === 'deliver') {
+        const pit = this.world.pits.get(hauler.task.targetPitId);
+        if (pit) {
+          g.lineStyle(1, 0xffaa00, 0.3);
+          g.lineBetween(hauler.pos.x, hauler.pos.y, pit.pos.x, pit.pos.y);
+        }
+      }
     }
 
-    // Unités (Leraje)
+    // Unités (Leraje) — carré vert
     for (const unit of this.world.units.values()) {
       g.fillStyle(0x44cc88);
       g.fillRect(unit.pos.x - 6, unit.pos.y - 6, 12, 12);
+      // Ligne vers la cible
+      if (unit.targetId) {
+        const target = this.world.enemies.get(unit.targetId);
+        if (target) {
+          g.lineStyle(1, 0x44cc88, 0.25);
+          g.lineBetween(unit.pos.x, unit.pos.y, target.pos.x, target.pos.y);
+        }
+      }
     }
 
-    // Ennemis
+    // Ennemis — cercle rouge + barre de vie
     for (const enemy of this.world.enemies.values()) {
       g.fillStyle(0xcc4444);
       g.fillCircle(enemy.pos.x, enemy.pos.y, 10);
@@ -100,16 +120,5 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(0xcc4444);
       g.fillRect(enemy.pos.x - 12, enemy.pos.y - 18, 24 * hpRatio, 4);
     }
-  }
-
-  private _updateHUD(): void {
-    const w = this.world;
-    this.debugText.setText([
-      `GOETIA — MVP  [R] Restart`,
-      `Tick: ${w.tick}`,
-      `Cadavres: ${w.corpses.size}  Âmes: ${w.souls.size}`,
-      `Haulers: ${w.haulers.size}  Unités: ${w.units.size}`,
-      `Ennemis: ${w.enemies.size}`,
-    ]);
   }
 }
