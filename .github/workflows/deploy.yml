@@ -32,4 +32,4 @@ jobs:
           SOURCE: "dist/"
           REMOTE_HOST: ${{ secrets.OVH_HOST }}
           REMOTE_USER: ${{ secrets.OVH_USER }}
-          TARGET: ${{ secrets.OVH_DEPLOY_PATH }}
+          TARGET: ${{ secrets.OVH_PATH }}/goetia/
