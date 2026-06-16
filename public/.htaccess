@@ -1,0 +1,11 @@
+Options -Indexes
+RewriteEngine On
+
+# Trailing slash redirect : /goetia -> /goetia/
+RewriteCond %{REQUEST_URI} ^/goetia$
+RewriteRule ^ /goetia/ [R=301,L]
+
+# SPA fallback : tout chemin inconnu -> index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ /goetia/index.html [L]
