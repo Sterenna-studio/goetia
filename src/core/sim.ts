@@ -13,9 +13,7 @@ import { UpgradeSystem } from './upgrades';
 import { spawnHauler } from './world';
 
 const FIXED_STEP_MS = 100;
-const SCORE_PER_SOLDIER = 5;
-const SCORE_PER_PRIEST = 12;
-const SCORE_PER_KNIGHT = 20;
+const SCORE_PER_KILL = 5;
 
 export class Simulation {
   private systems: GameSystem[];
@@ -60,10 +58,9 @@ export class Simulation {
       this.pendingCommands = [];
       for (const system of this.systems) system.update(ctx, world);
 
-      // Score par type d'ennemi
       const kills = this.combatSystem.killCount;
       if (kills > 0) {
-        this.score += kills * SCORE_PER_SOLDIER;
+        this.score += kills * SCORE_PER_KILL;
         this.combatSystem.killCount = 0;
       }
       this._checkGameOver(world);

@@ -32,7 +32,6 @@ export class SpawnSystem implements GameSystem {
     const unit: Unit = {
       id: newId('unit'),
       archetypeId: def.id,
-      demonName: def.demonName,
       pos: { ...pit.pos },
       hp: def.stats.hp,
       maxHp: def.stats.hp,

@@ -21,7 +21,7 @@ export interface Corpse {
   reservedBy?: EntityId;
   tags: CorpseTag[];
   createdAtTick: Tick;
-  blessed?: boolean; // cadavre béni — non récupérable
+  blessed?: boolean;
 }
 
 export interface Soul {
@@ -72,6 +72,9 @@ export interface Pit {
   progressTick: number;
   loadedCorpseId?: EntityId;
   loadedSoulId?: EntityId;
+  corpseId?: EntityId;
+  soulId?: EntityId;
+  assignedUnitType?: string;
 }
 
 export interface Enemy {
@@ -84,8 +87,8 @@ export interface Enemy {
   damage: number;
   state: 'move' | 'dead';
   dropsCorpse: boolean;
-  armor: number;           // réduction de dégâts flat
-  blessRadius: number;     // rayon de bénédiction (prêtre)
+  armor: number;
+  blessRadius: number;
   createdAtTick: Tick;
 }
 
