@@ -1,159 +1,110 @@
 // ============================================================
-// GOETIA — Codex overlay
+// GOETIA — Codex (thème néromancien)
 // ============================================================
 
-import bifrons from '../data/units/bifrons.json';
-import leraje from '../data/units/leraje.json';
-import murmur from '../data/units/murmur.json';
-import gamigin from '../data/units/gamigin.json';
-import bathin from '../data/units/bathin.json';
-import seir from '../data/units/seir.json';
-import codexData from '../data/lore/codex.json';
+import { CSS } from './theme';
 
-const DEMONS = [bifrons, murmur, leraje, bathin, seir, gamigin] as const;
-type DemonEntry = typeof DEMONS[number];
+const CODEX_ID = 'goetia-codex';
+let _visible = false;
+export function isCodexVisible(): boolean { return _visible; }
 
-let visible = false;
+const ENTRIES = [
+  { id:'bifrons',  sigil:'▲',  color: CSS.BIFRONS,  name:'Bifrons',  kind:'Porteur standard',
+    desc:'Collecte et livre les cadavres à la fosse. Vitesse moyenne, capacité 1.' },
+  { id:'bathin',   sigil:'▲▲', color: CSS.BATHIN,   name:'Bathin',   kind:'Porteur double',
+    desc:'Peut porter 2 cadavres simultanément. Fait deux trajectoires avant de revenir à l’IDLE.' },
+  { id:'seir',     sigil:'✷',  color: CSS.SEIR,     name:'Seir',     kind:'Téléporteur',
+    desc:'Se téléporte instantanément au cadavre puis à la fosse. Cooldown 0.8s entre chaque blink.' },
+  { id:'murmur',   sigil:'◆',  color: CSS.MURMUR,   name:'Murmur',   kind:'Extracteur',
+    desc:'S’installe près d’un cadavre et en extrait l’âme en 40 ticks. Qualité naturelle.' },
+  { id:'gamigin',  sigil:'◆',  color: CSS.GAMIGIN,  name:'Gamigin',  kind:'Extracteur rapide',
+    desc:'Extraction en 20 ticks. Élève le rang de l’âme d’un cran (common→potent, etc.).' },
+  { id:'leraje',   sigil:'■',  color: CSS.UNIT,     name:'Leraje',   kind:'Archer (invoqué)',
+    desc:'Invoqué par les fosses. Archer immobile. Prioritise les Prêtres ennemis.' },
+  // Ennemis
+  { id:'soldier',  sigil:'●',  color: CSS.ENEMY,    name:'Soldat',   kind:'Ennemi',
+    desc:'Ennemi basique. Avance sans s’arrêter, attaque les unités au contact.' },
+  { id:'priest',   sigil:'✝',  color:'#cccccc',    name:'Prêtre',   kind:'Ennemi — Bénit',
+    desc:'Bénit les cadavres à portée, les rendant inutilisables. Cible prioritaire.' },
+  { id:'knight',   sigil:'◆',  color:'#886622',    name:'Chevalier', kind:'Ennemi — Blindé',
+    desc:'Armor absorbe une partie des dégâts. Laisse un cadavre lourd à la mort.' },
+];
+
+export function toggleCodex(): void {
+  _visible = !_visible;
+  const el = document.getElementById(CODEX_ID);
+  if (el) el.style.display = _visible ? 'flex' : 'none';
+}
 
 export function initCodex(): void {
-  if (document.getElementById('goetia-codex')) return;
-
-  const overlay = document.createElement('div');
-  overlay.id = 'goetia-codex';
-  overlay.style.display = 'none';
-  overlay.innerHTML = `
-    <div id="codex-inner">
-      <div id="codex-header">
-        <span id="codex-title">CODEX GOETIA</span>
-        <button id="codex-close">✕</button>
-      </div>
-      <div id="codex-tabs"></div>
-      <div id="codex-body">
-        <div id="codex-sigil"></div>
-        <div id="codex-info">
-          <div id="codex-name"></div>
-          <div id="codex-rank"></div>
-          <div id="codex-lore"></div>
-          <div id="codex-stats"></div>
-        </div>
-      </div>
-      <div id="codex-footer"></div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
+  document.getElementById(CODEX_ID)?.remove();
+  document.getElementById('goetia-codex-style')?.remove();
+  _visible = false;
 
   const style = document.createElement('style');
   style.id = 'goetia-codex-style';
   style.textContent = `
     #goetia-codex {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
-      z-index: 200; display: flex; align-items: center; justify-content: center;
-      font-family: 'Courier New', monospace; color: #e0e0e0;
+      display: none;
+      position: fixed; inset: 0; z-index: 250;
+      background: rgba(0,0,0,0.93);
+      flex-wrap: wrap; gap: 12px;
+      align-content: flex-start;
+      justify-content: center;
+      padding: 60px 24px 24px;
+      overflow-y: auto; font-family: 'Courier New', monospace;
     }
-    #codex-inner {
-      background: #0d0d1a; border: 1px solid #333; border-radius: 10px;
-      width: 720px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+    .codex-card {
+      width: 240px; padding: 14px 16px;
+      background: rgba(0,5,0,0.9);
+      border: 1px solid ${CSS.BORDER};
+      border-top: 2px solid var(--cc, ${CSS.ACCENT});
+      display: flex; flex-direction: column; gap: 5px;
     }
-    #codex-header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 16px 24px; border-bottom: 1px solid #222;
+    .codex-sigil { font-size: 24px; line-height:1; color: var(--cc); }
+    .codex-name  { font-size: 15px; font-weight: bold; color: var(--cc); letter-spacing: 0.05em; }
+    .codex-kind  {
+      font-size: 9px; color: var(--cc); opacity: 0.7;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      border: 1px solid var(--cc); display: inline-block;
+      padding: 1px 6px; margin-bottom: 2px;
     }
-    #codex-title { font-size: 18px; color: #cc4444; letter-spacing: 0.15em; font-weight: bold; }
+    .codex-desc  { font-size: 11px; color: ${CSS.TEXT_DIM}; line-height: 1.55; }
+    .codex-sep   { border: none; border-top: 1px solid ${CSS.BORDER}; margin: 4px 0; }
     #codex-close {
-      background: none; border: 1px solid #444; color: #888;
-      cursor: pointer; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-size: 14px;
+      position: fixed; top: 14px; right: 14px;
+      background: none; border: 1px solid ${CSS.BORDER};
+      color: ${CSS.TEXT_DIM}; font-family: monospace; font-size: 12px;
+      padding: 6px 18px; cursor: pointer; z-index: 251;
+      transition: border-color 0.15s, color 0.15s;
     }
-    #codex-close:hover { color: #fff; border-color: #cc4444; }
-    #codex-tabs { display: flex; border-bottom: 1px solid #222; overflow-x: auto; }
-    .codex-tab {
-      padding: 10px 18px; font-size: 13px; cursor: pointer; color: #666;
-      border-bottom: 2px solid transparent; white-space: nowrap;
-      background: none; border-top: none; border-left: none; border-right: none;
-      font-family: monospace; transition: color 0.15s;
+    #codex-close:hover { border-color: ${CSS.WARNING}; color: ${CSS.WARNING}; }
+    #codex-title {
+      position: fixed; top: 14px; left: 50%;
+      transform: translateX(-50%);
+      font-family: monospace; font-size: 16px; letter-spacing: 0.3em;
+      color: ${CSS.ACCENT}; z-index: 251;
+      text-shadow: 0 0 12px ${CSS.ACCENT}55;
     }
-    .codex-tab:hover { color: #ccc; }
-    .codex-tab.active { color: #e0e0e0; border-bottom-color: var(--demon-color, #cc4444); }
-    #codex-body { display: flex; gap: 24px; padding: 24px; flex: 1; }
-    #codex-sigil {
-      width: 120px; height: 120px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 48px; flex-shrink: 0; border: 2px solid var(--demon-color, #444);
-    }
-    #codex-info { flex: 1; }
-    #codex-name { font-size: 28px; font-weight: bold; color: var(--demon-color, #fff); margin-bottom: 4px; }
-    #codex-rank { font-size: 13px; color: #666; margin-bottom: 16px; letter-spacing: 0.08em; }
-    #codex-lore {
-      font-size: 14px; color: #aaa; line-height: 1.7; margin-bottom: 20px;
-      font-style: italic; border-left: 2px solid var(--demon-color, #444); padding-left: 12px;
-    }
-    #codex-stats { display: flex; flex-wrap: wrap; gap: 10px; }
-    .stat-pill {
-      background: #1a1a2e; border: 1px solid #333; border-radius: 20px;
-      padding: 4px 12px; font-size: 12px; color: #ccc;
-    }
-    .stat-pill span { color: var(--demon-color, #fff); font-weight: bold; }
-    #codex-footer { padding: 14px 24px; border-top: 1px solid #1a1a1a; font-size: 12px; color: #444; text-align: center; }
   `;
-  if (!document.getElementById('goetia-codex-style')) document.head.appendChild(style);
+  document.head.appendChild(style);
 
-  const tabs = document.getElementById('codex-tabs')!;
-  DEMONS.forEach((d, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'codex-tab';
-    btn.textContent = d.label;
-    btn.style.setProperty('--demon-color', d.color);
-    btn.addEventListener('click', () => showDemon(i));
-    tabs.appendChild(btn);
+  const el = document.createElement('div');
+  el.id = CODEX_ID;
+  el.innerHTML = `<div id="codex-title">⧗ CODEX ⧗</div><button id="codex-close">[C] Fermer</button>`;
+  ENTRIES.forEach(e => {
+    const card = document.createElement('div');
+    card.className = 'codex-card';
+    card.style.setProperty('--cc', e.color);
+    card.innerHTML = `
+      <div class="codex-sigil">${e.sigil}</div>
+      <div class="codex-name">${e.name}</div>
+      <div class="codex-kind">${e.kind}</div>
+      <hr class="codex-sep">
+      <div class="codex-desc">${e.desc}</div>
+    `;
+    el.appendChild(card);
   });
-
-  document.getElementById('codex-close')!.addEventListener('click', hideCodex);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) hideCodex(); });
-  showDemon(0);
+  document.body.appendChild(el);
+  document.getElementById('codex-close')?.addEventListener('click', () => toggleCodex());
 }
-
-function showDemon(index: number): void {
-  const d = DEMONS[index] as DemonEntry & { stats: Record<string, number> };
-  document.getElementById('goetia-codex')!.style.setProperty('--demon-color', d.color);
-
-  document.querySelectorAll('.codex-tab').forEach((t, i) => {
-    t.classList.toggle('active', i === index);
-    (t as HTMLElement).style.setProperty('--demon-color', DEMONS[i].color);
-  });
-
-  const sigilEl = document.getElementById('codex-sigil')!;
-  sigilEl.textContent = d.label[0];
-  sigilEl.style.background = `${d.color}22`;
-
-  document.getElementById('codex-name')!.textContent = d.label;
-  document.getElementById('codex-rank')!.textContent =
-    `${d.rank} — ${(d as any).legions} légions — Rôle : ${(d as any).role}`;
-  document.getElementById('codex-lore')!.textContent = d.lore;
-
-  const statsEl = document.getElementById('codex-stats')!;
-  statsEl.innerHTML = '';
-  const statLabels: Record<string, string> = {
-    speed: 'Vitesse', hp: 'PV', damage: 'Dégâts', range: 'Portée',
-    carryCapacity: 'Capacité', extractionRadius: 'Rayon', aggro: 'Aggro',
-    teleportRange: 'Téléport', extractionSpeedTicks: 'Rapidité', bonusOnTainted: 'Bonus corrompu',
-  };
-  for (const [key, val] of Object.entries(d.stats)) {
-    const pill = document.createElement('div');
-    pill.className = 'stat-pill';
-    pill.innerHTML = `${statLabels[key] ?? key} : <span>${val}</span>`;
-    statsEl.appendChild(pill);
-  }
-  document.getElementById('codex-footer')!.textContent = codexData.world;
-}
-
-export function toggleCodex(): void { visible ? hideCodex() : showCodex(); }
-export function showCodex(): void {
-  visible = true;
-  const el = document.getElementById('goetia-codex');
-  if (el) el.style.display = 'flex';
-}
-export function hideCodex(): void {
-  visible = false;
-  const el = document.getElementById('goetia-codex');
-  if (el) el.style.display = 'none';
-}
-export function isCodexVisible(): boolean { return visible; }

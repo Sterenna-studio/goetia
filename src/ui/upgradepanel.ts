@@ -1,117 +1,124 @@
 // ============================================================
-// GOETIA — Panel upgrades
+// GOETIA — Upgrade panel (thème néromancien)
 // ============================================================
 
-import { ALL_UPGRADES, UpgradeSystem } from '../core/upgrades';
+import type { UpgradeSystem } from '../core/upgrades';
+import { CSS } from './theme';
 
-let onBuy: ((id: string) => void) | null = null;
-let getScore: (() => number) | null = null;
-let upgradeSystem: UpgradeSystem | null = null;
-let visible = false;
+const PANEL_ID = 'goetia-upgrades';
+let _visible = false;
+
+export function isUpgradePanelVisible(): boolean { return _visible; }
+
+export function toggleUpgradePanel(): void {
+  _visible = !_visible;
+  const p = document.getElementById(PANEL_ID);
+  if (p) p.style.display = _visible ? 'flex' : 'none';
+  if (_visible) _refresh();
+}
+
+let _upgrades: UpgradeSystem;
+let _getScore: () => number;
+let _buy: (id: string) => void;
 
 export function initUpgradePanel(
-  system: UpgradeSystem,
-  scoreFn: () => number,
-  buyCallback: (id: string) => void
+  upgrades: UpgradeSystem,
+  getScore: () => number,
+  buy: (id: string) => void,
 ): void {
-  upgradeSystem = system;
-  getScore = scoreFn;
-  onBuy = buyCallback;
-  if (document.getElementById('goetia-upgrades')) return;
-
-  const panel = document.createElement('div');
-  panel.id = 'goetia-upgrades';
-  panel.style.display = 'none';
-  document.body.appendChild(panel);
+  _upgrades = upgrades; _getScore = getScore; _buy = buy;
+  document.getElementById(PANEL_ID)?.remove();
+  document.getElementById('goetia-upgrades-style')?.remove();
+  _visible = false;
 
   const style = document.createElement('style');
   style.id = 'goetia-upgrades-style';
   style.textContent = `
     #goetia-upgrades {
-      position: fixed; top: 0; right: 0; width: 320px; height: 100vh;
-      background: rgba(8,8,16,0.97); border-left: 1px solid #222;
-      z-index: 180; display: flex; flex-direction: column;
-      font-family: monospace; color: #e0e0e0; overflow-y: auto;
+      display: none;
+      position: fixed; inset: 0; z-index: 250;
+      background: rgba(0,0,0,0.92);
+      flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 60px; gap: 10px;
+      font-family: 'Courier New', monospace;
+      overflow-y: auto;
     }
-    #up-header {
-      padding: 16px 20px; border-bottom: 1px solid #1a1a1a;
-      display: flex; justify-content: space-between; align-items: center;
+    #goetia-upgrades h2 {
+      color: ${CSS.ACCENT2};
+      font-size: 20px; letter-spacing: 0.3em;
+      text-shadow: 0 0 14px ${CSS.ACCENT2}55;
+      margin-bottom: 4px;
     }
-    #up-title { color: #cc4444; font-size: 16px; font-weight: bold; letter-spacing: 0.1em; }
-    #up-score-display { color: #ffdd44; font-size: 14px; }
+    #goetia-upgrades .up-score {
+      color: ${CSS.ACCENT}; font-size: 13px; margin-bottom: 16px;
+    }
+    .up-card {
+      width: 340px; padding: 12px 18px;
+      background: rgba(0,0,0,0.8);
+      border: 1px solid ${CSS.BORDER};
+      border-left: 3px solid ${CSS.ACCENT2};
+      display: flex; flex-direction: column; gap: 4px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .up-card:hover { border-color: ${CSS.ACCENT2}; box-shadow: 0 0 10px ${CSS.ACCENT2}33; }
+    .up-card.bought { border-left-color: ${CSS.TEXT_DIM}; opacity: 0.5; }
+    .up-name  { color: ${CSS.TEXT_BRIGHT}; font-size: 14px; font-weight: bold; }
+    .up-desc  { color: ${CSS.TEXT_DIM}; font-size: 11px; }
+    .up-row   { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+    .up-cost  { color: ${CSS.ACCENT}; font-size: 12px; }
+    .up-btn {
+      background: none; border: 1px solid ${CSS.ACCENT};
+      color: ${CSS.ACCENT}; font-family: monospace; font-size: 11px;
+      padding: 4px 14px; cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .up-btn:hover  { background: rgba(51,255,102,0.12); box-shadow: 0 0 8px ${CSS.ACCENT}44; }
+    .up-btn:disabled { border-color: ${CSS.BORDER}; color: ${CSS.TEXT_DIM}; cursor: default; }
+    .up-btn:disabled:hover { background: none; box-shadow: none; }
     #up-close {
-      background: none; border: 1px solid #444; color: #888;
-      cursor: pointer; padding: 3px 8px; border-radius: 4px; font-family: monospace;
+      background: none; border: 1px solid ${CSS.BORDER};
+      color: ${CSS.TEXT_DIM}; font-family: monospace; font-size: 12px;
+      padding: 8px 28px; cursor: pointer; margin-top: 10px;
+      transition: border-color 0.15s, color 0.15s;
     }
-    #up-close:hover { color: #fff; border-color: #cc4444; }
-    #up-list { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-    .up-item {
-      background: #0d0d1a; border: 1px solid #2a2a3a;
-      border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: border-color 0.15s;
-    }
-    .up-item:hover:not(.up-locked):not(.up-bought) { border-color: #cc4444; }
-    .up-item.up-bought { opacity: 0.45; cursor: default; border-color: #2a4a2a; }
-    .up-item.up-locked { opacity: 0.3; cursor: default; }
-    .up-item.up-affordable { border-color: #554422; }
-    .up-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .up-icon { font-size: 16px; margin-right: 8px; }
-    .up-label { font-size: 13px; font-weight: bold; flex: 1; }
-    .up-cost { font-size: 12px; color: #ffdd44; white-space: nowrap; }
-    .up-cost.up-cant { color: #664444; }
-    .up-desc { font-size: 11px; color: #666; line-height: 1.5; }
-    .up-bought .up-label::after { content: ' ✔'; color: #44cc88; }
-    .up-locked .up-desc::before { content: '🔒 '; }
-    #up-hint { padding: 12px 20px; font-size: 11px; color: #444; text-align: center; }
+    #up-close:hover { border-color: ${CSS.WARNING}; color: ${CSS.WARNING}; }
   `;
-  if (!document.getElementById('goetia-upgrades-style')) document.head.appendChild(style);
+  document.head.appendChild(style);
+
+  const panel = document.createElement('div');
+  panel.id = PANEL_ID;
+  panel.innerHTML = `<h2>⧗ RITUELS D'AMÉLIORATION ⧗</h2><div class="up-score"></div><div id="up-list"></div><button id="up-close">[U] Fermer</button>`;
+  document.body.appendChild(panel);
+  document.getElementById('up-close')?.addEventListener('click', () => { _visible = true; toggleUpgradePanel(); });
 }
 
-export function renderUpgradePanel(): void {
-  const panel = document.getElementById('goetia-upgrades');
-  if (!panel || !upgradeSystem || !getScore) return;
-  const score = getScore();
-  panel.innerHTML = `
-    <div id="up-header">
-      <span id="up-title">UPGRADES</span>
-      <span id="up-score-display">Score : ${score}</span>
-      <button id="up-close">✕</button>
-    </div>
-    <div id="up-list"></div>
-    <div id="up-hint">[U] pour fermer — Score = monnaie d'invocation</div>
-  `;
-  document.getElementById('up-close')!.addEventListener('click', hideUpgradePanel);
-  const list = document.getElementById('up-list')!;
-  for (const upg of ALL_UPGRADES) {
-    const bought = upgradeSystem.isPurchased(upg.id);
-    const unlocked = upgradeSystem.isUnlocked(upg.id);
-    const affordable = !bought && unlocked && score >= upg.cost;
-    const cls = bought ? 'up-bought' : !unlocked ? 'up-locked' : affordable ? 'up-affordable' : '';
-    const item = document.createElement('div');
-    item.className = `up-item ${cls}`;
-    item.innerHTML = `
-      <div class="up-top">
-        <span class="up-icon">${upg.icon}</span>
-        <span class="up-label">${upg.label}</span>
-        <span class="up-cost ${!affordable && !bought ? 'up-cant' : ''}">${bought ? '' : `${upg.cost} pts`}</span>
-      </div>
-      <div class="up-desc">${upg.desc}</div>
-    `;
-    if (!bought && unlocked) {
-      item.addEventListener('click', () => { onBuy?.(upg.id); renderUpgradePanel(); });
+function _refresh(): void {
+  const score  = _getScore();
+  const bought = _upgrades.getPurchased();
+  const all    = _upgrades.getAll();
+
+  const scoreEl = document.querySelector('#goetia-upgrades .up-score');
+  if (scoreEl) scoreEl.textContent = `${score} pts disponibles`;
+
+  const list = document.getElementById('up-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  for (const up of all) {
+    const isBought = bought.includes(up.id);
+    const canBuy   = !isBought && score >= up.cost;
+    const card     = document.createElement('div');
+    card.className = `up-card${isBought ? ' bought' : ''}`;
+    card.innerHTML = `
+      <div class="up-name">${up.name}</div>
+      <div class="up-desc">${up.description}</div>
+      <div class="up-row">
+        <span class="up-cost">${isBought ? '✓ acquis' : `${up.cost} pts`}</span>
+        ${!isBought ? `<button class="up-btn" ${canBuy ? '' : 'disabled'}>Rituel</button>` : ''}
+      </div>`;
+    if (!isBought) {
+      card.querySelector('.up-btn')?.addEventListener('click', () => { _buy(up.id); _refresh(); });
     }
-    list.appendChild(item);
+    list.appendChild(card);
   }
 }
-
-export function toggleUpgradePanel(): void { visible ? hideUpgradePanel() : showUpgradePanel(); }
-export function showUpgradePanel(): void {
-  visible = true;
-  const p = document.getElementById('goetia-upgrades');
-  if (p) { p.style.display = 'flex'; renderUpgradePanel(); }
-}
-export function hideUpgradePanel(): void {
-  visible = false;
-  const p = document.getElementById('goetia-upgrades');
-  if (p) p.style.display = 'none';
-}
-export function isUpgradePanelVisible(): boolean { return visible; }
