@@ -1,0 +1,83 @@
+[
+  {
+    "id": "hauler_speed_1",
+    "label": "Vitesse des porteurs I",
+    "desc": "Bifrons et ses fr\u00e8res se d\u00e9placent 25% plus vite.",
+    "cost": 20,
+    "icon": "\u25b2",
+    "requires": [],
+    "effect": { "type": "hauler_speed", "value": 0.25 }
+  },
+  {
+    "id": "hauler_speed_2",
+    "label": "Vitesse des porteurs II",
+    "desc": "+25% suppl\u00e9mentaires. Les porteurs courent.",
+    "cost": 50,
+    "icon": "\u25b2\u25b2",
+    "requires": ["hauler_speed_1"],
+    "effect": { "type": "hauler_speed", "value": 0.25 }
+  },
+  {
+    "id": "pit_speed_1",
+    "label": "Rituel acc\u00e9l\u00e9r\u00e9 I",
+    "desc": "Les fosses produisent Ler\u00e0j\u00e9 30% plus vite.",
+    "cost": 25,
+    "icon": "\u25a1",
+    "requires": [],
+    "effect": { "type": "pit_speed", "value": 0.30 }
+  },
+  {
+    "id": "pit_speed_2",
+    "label": "Rituel acc\u00e9l\u00e9r\u00e9 II",
+    "desc": "+30% suppl\u00e9mentaires. Le rituel est ma\u00eetris\u00e9.",
+    "cost": 60,
+    "icon": "\u25a1\u25a1",
+    "requires": ["pit_speed_1"],
+    "effect": { "type": "pit_speed", "value": 0.30 }
+  },
+  {
+    "id": "unit_damage_1",
+    "label": "Fl\u00e8ches empoisonn\u00e9es",
+    "desc": "Ler\u00e0j\u00e9 inflige 30% de d\u00e9g\u00e2ts suppl\u00e9mentaires.",
+    "cost": 35,
+    "icon": "\u25a0",
+    "requires": [],
+    "effect": { "type": "unit_damage", "value": 0.30 }
+  },
+  {
+    "id": "unit_damage_2",
+    "label": "Blessures qui ne gu\u00e9rissent pas",
+    "desc": "+50% d\u00e9g\u00e2ts. Les ennemis touch\u00e9s saignent.",
+    "cost": 80,
+    "icon": "\u25a0\u25a0",
+    "requires": ["unit_damage_1"],
+    "effect": { "type": "unit_damage", "value": 0.50 }
+  },
+  {
+    "id": "extra_pit",
+    "label": "Troisi\u00e8me fosse",
+    "desc": "Une nouvelle fosse appara\u00eet sur le champ de bataille.",
+    "cost": 70,
+    "icon": "\u25a1+",
+    "requires": ["pit_speed_1"],
+    "effect": { "type": "spawn_pit", "value": 1 }
+  },
+  {
+    "id": "soul_preserve",
+    "label": "Pr\u00e9servation des \u00e2mes",
+    "desc": "Les \u00e2mes se d\u00e9stabilisent 50% moins vite.",
+    "cost": 30,
+    "icon": "\u25cf",
+    "requires": [],
+    "effect": { "type": "soul_decay", "value": -0.50 }
+  },
+  {
+    "id": "hauler_capacity",
+    "label": "Brancard de Bathin",
+    "desc": "Bathin peut porter 3 corps simultan\u00e9ment.",
+    "cost": 55,
+    "icon": "\u25b2+",
+    "requires": ["hauler_speed_1"],
+    "effect": { "type": "bathin_capacity", "value": 1 }
+  }
+]

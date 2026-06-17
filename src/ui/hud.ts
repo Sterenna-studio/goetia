@@ -20,11 +20,12 @@ export function initHUD(): void {
       <span id="hud-wave">Vague: —</span>
       <span id="hud-score">Score: 0</span>
       <button id="hud-codex-btn">[C] Codex</button>
+      <button id="hud-upgrades-btn">[U] Upgrades</button>
       <span id="hud-restart">[R] Restart</span>
     </div>
     <div id="hud-active-demon">
       <span id="hud-demon-label">Bifrons</span>
-      <span id="hud-demon-hint">[Clic gauche] Invoquer &nbsp; [Clic droit] Changer</span>
+      <span id="hud-demon-hint">[G] Invoquer &nbsp; [D] Changer</span>
     </div>
     <div id="hud-resources">
       <div class="res-block">
@@ -72,23 +73,23 @@ export function initHUD(): void {
     #hud-top {
       position: absolute; top: 10px; left: 50%;
       transform: translateX(-50%);
-      display: flex; gap: 24px; align-items: center;
+      display: flex; gap: 18px; align-items: center;
       background: rgba(0,0,0,0.6);
       padding: 6px 18px; border-radius: 6px;
       font-size: 13px; letter-spacing: 0.04em;
-      white-space: nowrap;
-      pointer-events: all;
+      white-space: nowrap; pointer-events: all;
     }
     #hud-restart { color: #ffaa44; }
     #hud-wave { color: #88ccff; }
-    #hud-score { color: #ffdd44; }
-    #hud-codex-btn {
+    #hud-score { color: #ffdd44; font-weight: bold; }
+    #hud-codex-btn, #hud-upgrades-btn {
       background: none; border: 1px solid #554;
       color: #aa9966; cursor: pointer;
       padding: 2px 10px; border-radius: 4px;
       font-family: monospace; font-size: 12px;
     }
-    #hud-codex-btn:hover { border-color: #cc4444; color: #ffdd44; }
+    #hud-codex-btn:hover, #hud-upgrades-btn:hover { border-color: #cc4444; color: #ffdd44; }
+    #hud-upgrades-btn { color: #88aacc; border-color: #334455; }
     #hud-active-demon {
       position: absolute; top: 52px; left: 50%;
       transform: translateX(-50%);
@@ -98,11 +99,7 @@ export function initHUD(): void {
       font-size: 12px;
       border: 1px solid var(--active-color, #9966cc);
     }
-    #hud-demon-label {
-      color: var(--active-color, #9966cc);
-      font-weight: bold;
-      font-size: 14px;
-    }
+    #hud-demon-label { color: var(--active-color, #9966cc); font-weight: bold; font-size: 14px; }
     #hud-demon-hint { color: #555; font-size: 11px; }
     #hud-resources {
       position: absolute; bottom: 18px; left: 50%;
@@ -115,30 +112,20 @@ export function initHUD(): void {
     .res-icon { width:14px; height:14px; border-radius:3px; }
     .res-block span { font-size:22px; font-weight:bold; line-height:1; }
     .res-block label { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.06em; }
-    #hud-pits {
-      position: absolute; top: 50px; right: 14px;
-      display: flex; flex-direction: column; gap: 6px;
-    }
-    .pit-row {
-      background: rgba(0,0,0,0.6); padding: 5px 10px;
-      border-radius: 5px; font-size: 12px; min-width: 160px;
-    }
+    #hud-pits { position: absolute; top: 50px; right: 14px; display: flex; flex-direction: column; gap: 6px; }
+    .pit-row { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 12px; min-width: 160px; }
     .pit-bar-bg { background:#333; height:4px; border-radius:2px; margin-top:4px; }
     .pit-bar-fill { background:#ffaa00; height:4px; border-radius:2px; }
-    #hud-legend {
-      position: absolute; bottom: 90px; left: 50%;
-      transform: translateX(-50%);
-      font-size: 12px; color: #555; white-space: nowrap;
-    }
+    #hud-legend { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #555; white-space: nowrap; }
   `;
   const oldStyle = document.getElementById('goetia-hud-style');
   if (oldStyle) oldStyle.remove();
   document.head.appendChild(style);
 }
 
-export function initHUDCodexButton(onToggle: () => void): void {
-  const btn = document.getElementById('hud-codex-btn');
-  if (btn) btn.addEventListener('click', onToggle);
+export function initHUDButtons(onCodex: () => void, onUpgrades: () => void): void {
+  document.getElementById('hud-codex-btn')?.addEventListener('click', onCodex);
+  document.getElementById('hud-upgrades-btn')?.addEventListener('click', onUpgrades);
 }
 
 export function updateActiveDemon(demon: DemonOption): void {
@@ -164,18 +151,15 @@ export function updateHUD(world: WorldState, wave = 0, score = 0, gameOver = fal
   let i = 1;
   for (const pit of world.pits.values()) {
     const stateLabel: Record<string, string> = {
-      empty: '⬜ Vide', loading: '🟡 Chargement',
-      processing: '🟠 Rituel…', ready: '🟢 Prête',
+      empty: '⬜ Vide', loading: '🟡 Chargement', processing: '🟠 Rituel…', ready: '🟢 Prête',
     };
-    const progress = pit.state === 'processing'
-      ? Math.round((1 - pit.progressTick / 30) * 100) : 0;
+    const progress = pit.state === 'processing' ? Math.round((1 - pit.progressTick / 30) * 100) : 0;
     pitsEl.innerHTML += `
       <div class="pit-row">
         <strong>Fosse ${i++}</strong> — ${stateLabel[pit.state] ?? pit.state}
         ${pit.state === 'processing' ? `
           <div class="pit-bar-bg"><div class="pit-bar-fill" style="width:${progress}%"></div></div>
-          <span style="font-size:10px;color:#ffaa00">${progress}% — Leraje</span>
-        ` : ''}
+          <span style="font-size:10px;color:#ffaa00">${progress}% — Leraje</span>` : ''}
       </div>`;
   }
 }

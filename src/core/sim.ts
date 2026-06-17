@@ -1,5 +1,5 @@
 // ============================================================
-// GOETIA — Boucle de simulation fixed-step
+// GOETIA — Simulation
 // ============================================================
 
 import type { WorldState, SimContext, GameSystem, GameCommand } from './types';
@@ -8,25 +8,34 @@ import { HaulingSystem } from './systems/HaulingSystem';
 import { SpawnSystem } from './systems/SpawnSystem';
 import { CombatSystem } from './systems/CombatSystem';
 import { WaveSystem } from './systems/WaveSystem';
+import { UpgradeSystem } from './upgrades';
+import { spawnHauler } from './world';
 
 const FIXED_STEP_MS = 100;
+const SCORE_PER_KILL = 5;
 
 export class Simulation {
   private systems: GameSystem[];
   private accumulator = 0;
   private _tick = 0;
   private pendingCommands: GameCommand[] = [];
+  private prevEnemyCount = 0;
+
   public waveSystem: WaveSystem;
+  public combatSystem: CombatSystem;
+  public upgrades: UpgradeSystem;
   public gameOver = false;
   public score = 0;
 
   constructor() {
     this.waveSystem = new WaveSystem();
+    this.combatSystem = new CombatSystem();
+    this.upgrades = new UpgradeSystem();
     this.systems = [
       new NecromancySystem(),
       new HaulingSystem(),
       new SpawnSystem(),
-      new CombatSystem(),
+      this.combatSystem,
       this.waveSystem,
     ];
   }
@@ -51,37 +60,36 @@ export class Simulation {
         commands: this.pendingCommands,
       };
 
-      // Traiter les commandes
       for (const cmd of this.pendingCommands) {
         if (cmd.type === 'SPAWN_HAULER') {
-          const { spawnHauler } = require('./world');
           spawnHauler(world, cmd.pos, cmd.demonName);
         }
       }
+      this.pendingCommands = [];
 
       for (const system of this.systems) {
         system.update(ctx, world);
       }
 
-      this.pendingCommands = [];
+      // Score par kill
+      const kills = this.combatSystem.killCount;
+      if (kills > 0) {
+        this.score += kills * SCORE_PER_KILL;
+        this.combatSystem.killCount = 0;
+      }
 
-      // Score : +1 par ennemi tué (détecté par delta enemies)
       this._checkGameOver(world);
     }
   }
 
   private _checkGameOver(world: WorldState): void {
-    // Condition : un ennemi atteint x <= 0
     for (const enemy of world.enemies.values()) {
-      if (enemy.pos.x <= 0) {
-        this.gameOver = true;
-        return;
-      }
+      if (enemy.pos.x <= 0) { this.gameOver = true; return; }
     }
   }
 
-  addScore(points: number): void {
-    this.score += points;
+  buyUpgrade(id: string, world: WorldState): void {
+    this.score = this.upgrades.buy(id, this.score, world);
   }
 
   reset(): void {
@@ -90,7 +98,10 @@ export class Simulation {
     this.pendingCommands = [];
     this.gameOver = false;
     this.score = 0;
+    this.prevEnemyCount = 0;
     this.waveSystem.reset();
+    this.combatSystem.reset();
+    this.upgrades.reset();
   }
 
   get tick(): number { return this._tick; }
