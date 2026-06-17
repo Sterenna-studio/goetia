@@ -1,6 +1,6 @@
 // ============================================================
-// GOETIA — CombatSystem (Leraje)
-// Ciblage, déplacement, attaque. Ennemis morts → Corpse + score.
+// GOETIA — CombatSystem
+// Leraje attaque. Armor du Chevalier réduit les dégâts.
 // ============================================================
 
 import type { GameSystem, SimContext, WorldState, Enemy } from '../types';
@@ -24,22 +24,27 @@ export class CombatSystem implements GameSystem {
       if (unit.state === 'dead') continue;
       let nearest: Enemy | null = null;
       let nearestDist = Infinity;
+      // Priorité : prêtres d'abord
       for (const enemy of world.enemies.values()) {
         if (enemy.state === 'dead') continue;
-        const d = dist(unit.pos, enemy.pos);
+        let d = dist(unit.pos, enemy.pos);
+        if (enemy.type === 'priest') d -= 50; // bonus aggro
         if (d < nearestDist) { nearestDist = d; nearest = enemy; }
       }
       if (!nearest) { unit.state = 'idle'; unit.targetId = undefined; continue; }
       unit.targetId = nearest.id;
+      const realDist = dist(unit.pos, nearest.pos);
       const range = 80;
-      if (nearestDist > range) {
+      if (realDist > range) {
         unit.state = 'move';
         unit.pos = moveToward(unit.pos, nearest.pos, unit.speed);
       } else {
         unit.state = 'attack';
         const cd = this.cooldowns.get(unit.id) ?? 0;
         if (world.tick >= cd) {
-          nearest.hp -= unit.damage;
+          const rawDmg = unit.damage;
+          const finalDmg = Math.max(1, rawDmg - nearest.armor);
+          nearest.hp -= finalDmg;
           this.cooldowns.set(unit.id, world.tick + ATTACK_COOLDOWN_TICKS);
         }
       }
@@ -64,20 +69,18 @@ export class CombatSystem implements GameSystem {
   private _cleanDead(world: WorldState): void {
     for (const enemy of world.enemies.values()) {
       if (enemy.state !== 'dead') continue;
-      if (enemy.dropsCorpse) spawnCorpse(world, enemy.pos, ['human'], 1.0);
+      if (enemy.dropsCorpse) {
+        const tags = enemy.type === 'knight' ? ['knight' as const] : ['human' as const];
+        const mass = enemy.type === 'knight' ? 2.0 : 1.0;
+        spawnCorpse(world, enemy.pos, tags, mass);
+      }
       this.killCount++;
       world.enemies.delete(enemy.id);
     }
     for (const unit of world.units.values()) {
-      if (unit.state === 'dead') {
-        this.cooldowns.delete(unit.id);
-        world.units.delete(unit.id);
-      }
+      if (unit.state === 'dead') { this.cooldowns.delete(unit.id); world.units.delete(unit.id); }
     }
   }
 
-  reset(): void {
-    this.killCount = 0;
-    this.cooldowns.clear();
-  }
+  reset(): void { this.killCount = 0; this.cooldowns.clear(); }
 }
