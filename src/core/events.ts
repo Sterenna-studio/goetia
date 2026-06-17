@@ -1,13 +1,14 @@
 // ============================================================
-// GOETIA — EventBus léger
-// Pub/sub synchrone pour découpler les systèmes du scoring.
+// GOETIA — EventBus v2
+// CORPSE_DELIVERED intègre maintenant worldPos optionnel
+// pour que le popup appaïsse au bon endroit sur le canvas.
 // ============================================================
 
 export type GoetiaEvent =
-  | { type: 'CORPSE_DELIVERED';  corpseId: string; pitId: string; freshness: number; soulQuality: string | null; corpseType: string }
-  | { type: 'SOUL_CAPTURED';     soulId: string; quality: string }
-  | { type: 'ENEMY_KILLED';      enemyId: string; enemyType: string }
-  | { type: 'HAULER_DIED';       haulerId: string };
+  | { type: 'CORPSE_DELIVERED'; corpseId: string; pitId: string; freshness: number; soulQuality: string | null; corpseType: string; worldPos?: { x: number; y: number } }
+  | { type: 'SOUL_CAPTURED';    soulId: string; quality: string }
+  | { type: 'ENEMY_KILLED';     enemyId: string; enemyType: string }
+  | { type: 'HAULER_DIED';      haulerId: string };
 
 type Listener<T extends GoetiaEvent> = (ev: T) => void;
 type AnyListener = (ev: GoetiaEvent) => void;
@@ -23,8 +24,6 @@ export const EventBus = {
     const arr = _listeners.get(type);
     if (arr) _listeners.set(type, arr.filter(f => f !== fn));
   },
-  emit(ev: GoetiaEvent): void {
-    _listeners.get(ev.type)?.forEach(fn => fn(ev));
-  },
+  emit(ev: GoetiaEvent): void { _listeners.get(ev.type)?.forEach(fn => fn(ev)); },
   clear(): void { _listeners.clear(); },
 };

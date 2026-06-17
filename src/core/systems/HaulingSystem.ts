@@ -1,6 +1,7 @@
 // ============================================================
-// GOETIA — HaulingSystem v2 (Bifrons)
-// Émet CORPSE_DELIVERED sur l'EventBus à chaque livraison.
+// GOETIA — HaulingSystem v3
+// Émet CORPSE_DELIVERED avec worldPos (position de la fosse)
+// pour que le popup flottant apparaisse au bon endroit.
 // ============================================================
 
 import type { GameSystem, SimContext, WorldState, Hauler } from '../types';
@@ -22,63 +23,63 @@ export class HaulingSystem implements GameSystem {
     }
   }
 
-  private _tick(hauler: Hauler, world: WorldState): void {
-    switch (hauler.task.kind) {
-      case 'idle':    this._assignTask(hauler, world); break;
-      case 'pickup':  this._doPickup(hauler, world);   break;
-      case 'deliver': this._doDeliver(hauler, world);  break;
-      case 'evade':   hauler.task = { kind: 'idle' };  break;
+  private _tick(h: Hauler, world: WorldState): void {
+    switch (h.task.kind) {
+      case 'idle':    this._assignTask(h, world); break;
+      case 'pickup':  this._doPickup(h, world);   break;
+      case 'deliver': this._doDeliver(h, world);  break;
+      case 'evade':   h.task = { kind: 'idle' };  break;
     }
   }
 
-  private _assignTask(hauler: Hauler, world: WorldState): void {
+  private _assignTask(h: Hauler, world: WorldState): void {
     const corpses = getAvailableCorpses(world);
     const pits    = getEmptyPits(world);
-    if (corpses.length === 0 || pits.length === 0) return;
-    corpses.sort((a, b) => dist(hauler.pos, a.pos) - dist(hauler.pos, b.pos));
+    if (!corpses.length || !pits.length) return;
+    corpses.sort((a, b) => dist(h.pos, a.pos) - dist(h.pos, b.pos));
     const target = corpses[0];
-    target.reservedBy = hauler.id;
-    hauler.task = { kind: 'pickup', corpseId: target.id };
+    target.reservedBy = h.id;
+    h.task = { kind: 'pickup', corpseId: target.id };
   }
 
-  private _doPickup(hauler: Hauler, world: WorldState): void {
-    if (hauler.task.kind !== 'pickup') return;
-    const corpse = world.corpses.get(hauler.task.corpseId);
-    if (!corpse || corpse.freshness01 <= 0) { hauler.task = { kind: 'idle' }; return; }
-
-    hauler.pos = moveToward(hauler.pos, corpse.pos, hauler.speed);
-
-    if (dist(hauler.pos, corpse.pos) < PICKUP_RANGE) {
-      hauler.carriedCorpseId = corpse.id;
+  private _doPickup(h: Hauler, world: WorldState): void {
+    if (h.task.kind !== 'pickup') return;
+    const corpse = world.corpses.get(h.task.corpseId);
+    if (!corpse || corpse.freshness01 <= 0) { h.task = { kind: 'idle' }; return; }
+    h.pos = moveToward(h.pos, corpse.pos, h.speed);
+    if (dist(h.pos, corpse.pos) < PICKUP_RANGE) {
+      h.carriedCorpseId = corpse.id;
       const pits = getEmptyPits(world);
-      if (pits.length === 0) { hauler.task = { kind: 'idle' }; return; }
-      pits.sort((a, b) => dist(hauler.pos, a.pos) - dist(hauler.pos, b.pos));
+      if (!pits.length) { h.task = { kind: 'idle' }; return; }
+      pits.sort((a, b) => dist(h.pos, a.pos) - dist(h.pos, b.pos));
       const pit = pits[0];
       pit.state = 'loading';
-      hauler.task = { kind: 'deliver', corpseId: corpse.id, targetPitId: pit.id };
+      h.task = { kind: 'deliver', corpseId: corpse.id, targetPitId: pit.id };
     }
   }
 
-  private _doDeliver(hauler: Hauler, world: WorldState): void {
-    if (hauler.task.kind !== 'deliver') return;
-    const pit    = world.pits.get(hauler.task.targetPitId);
-    const corpse = world.corpses.get(hauler.task.corpseId);
-    if (!pit || !corpse) { hauler.task = { kind: 'idle' }; hauler.carriedCorpseId = undefined; return; }
+  private _doDeliver(h: Hauler, world: WorldState): void {
+    if (h.task.kind !== 'deliver') return;
+    const pit    = world.pits.get(h.task.targetPitId);
+    const corpse = world.corpses.get(h.task.corpseId);
+    if (!pit || !corpse) { h.task = { kind: 'idle' }; h.carriedCorpseId = undefined; return; }
 
-    hauler.pos = moveToward(hauler.pos, pit.pos, hauler.speed);
-    corpse.pos = { ...hauler.pos };
+    h.pos      = moveToward(h.pos, pit.pos, h.speed);
+    corpse.pos = { ...h.pos };
 
-    if (dist(hauler.pos, pit.pos) < DELIVER_RANGE) {
-      // ─ Évenir AVANT de modifier l'état (freshness encore valide)
+    if (dist(h.pos, pit.pos) < DELIVER_RANGE) {
+      // Émettre avant modification d'état
       EventBus.emit({
         type:        'CORPSE_DELIVERED',
         corpseId:    corpse.id,
         pitId:       pit.id,
         freshness:   corpse.freshness01,
         soulQuality: corpse.soulId ? (world.souls.get(corpse.soulId)?.quality ?? null) : null,
-        corpseType:  corpse.tags.includes('large')  ? 'large'   :
-                     corpse.tags.includes('priest') ? 'priest'  :
-                     corpse.tags.includes('soldier')? 'soldier' : 'human',
+        corpseType:  corpse.tags.includes('large')   ? 'large'
+                   : corpse.tags.includes('priest')  ? 'priest'
+                   : corpse.tags.includes('soldier') ? 'soldier'
+                   : 'human',
+        worldPos:    { x: pit.pos.x, y: pit.pos.y - 20 },  // au-dessus de la fosse
       });
 
       pit.state            = 'processing';
@@ -87,8 +88,8 @@ export class HaulingSystem implements GameSystem {
       pit.progressTick     = 30;
       pit.assignedUnitType = 'leraje';
       corpse.reservedBy    = undefined;
-      hauler.carriedCorpseId = undefined;
-      hauler.task = { kind: 'idle' };
+      h.carriedCorpseId    = undefined;
+      h.task = { kind: 'idle' };
     }
   }
 }

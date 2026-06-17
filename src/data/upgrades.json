@@ -2,56 +2,52 @@
   {
     "id": "hauler_speed_1",
     "label": "Vitesse des porteurs I",
-    "desc": "Bifrons et ses fr\u00e8res se d\u00e9placent 25% plus vite.",
+    "desc": "Bifrons et ses fr\u00e8res se d\u00e9placent 25\u00a0% plus vite.",
     "cost": 20,
     "icon": "\u25b2",
     "requires": [],
+    "tier": 1,
     "effect": { "type": "hauler_speed", "value": 0.25 }
   },
   {
     "id": "hauler_speed_2",
     "label": "Vitesse des porteurs II",
-    "desc": "+25% suppl\u00e9mentaires. Les porteurs courent.",
+    "desc": "+25\u00a0% suppl\u00e9mentaires. Les porteurs courent.",
     "cost": 50,
     "icon": "\u25b2\u25b2",
     "requires": ["hauler_speed_1"],
+    "tier": 2,
     "effect": { "type": "hauler_speed", "value": 0.25 }
+  },
+  {
+    "id": "hauler_speed_3",
+    "label": "Rituel de foulée",
+    "desc": "Les porteurs ne ralentissent plus quand ils portent un corps.",
+    "cost": 100,
+    "icon": "\u25b2\u25b2\u25b2",
+    "requires": ["hauler_speed_2"],
+    "tier": 3,
+    "effect": { "type": "hauler_speed", "value": 0.20 }
   },
   {
     "id": "pit_speed_1",
     "label": "Rituel acc\u00e9l\u00e9r\u00e9 I",
-    "desc": "Les fosses produisent Ler\u00e0j\u00e9 30% plus vite.",
+    "desc": "Les fosses produisent Ler\u00e0j\u00e9 30\u00a0% plus vite.",
     "cost": 25,
     "icon": "\u25a1",
     "requires": [],
+    "tier": 1,
     "effect": { "type": "pit_speed", "value": 0.30 }
   },
   {
     "id": "pit_speed_2",
     "label": "Rituel acc\u00e9l\u00e9r\u00e9 II",
-    "desc": "+30% suppl\u00e9mentaires. Le rituel est ma\u00eetris\u00e9.",
+    "desc": "+30\u00a0% suppl\u00e9mentaires. Le rituel est ma\u00eetris\u00e9.",
     "cost": 60,
     "icon": "\u25a1\u25a1",
     "requires": ["pit_speed_1"],
+    "tier": 2,
     "effect": { "type": "pit_speed", "value": 0.30 }
-  },
-  {
-    "id": "unit_damage_1",
-    "label": "Fl\u00e8ches empoisonn\u00e9es",
-    "desc": "Ler\u00e0j\u00e9 inflige 30% de d\u00e9g\u00e2ts suppl\u00e9mentaires.",
-    "cost": 35,
-    "icon": "\u25a0",
-    "requires": [],
-    "effect": { "type": "unit_damage", "value": 0.30 }
-  },
-  {
-    "id": "unit_damage_2",
-    "label": "Blessures qui ne gu\u00e9rissent pas",
-    "desc": "+50% d\u00e9g\u00e2ts. Les ennemis touch\u00e9s saignent.",
-    "cost": 80,
-    "icon": "\u25a0\u25a0",
-    "requires": ["unit_damage_1"],
-    "effect": { "type": "unit_damage", "value": 0.50 }
   },
   {
     "id": "extra_pit",
@@ -60,16 +56,48 @@
     "cost": 70,
     "icon": "\u25a1+",
     "requires": ["pit_speed_1"],
+    "tier": 2,
     "effect": { "type": "spawn_pit", "value": 1 }
+  },
+  {
+    "id": "unit_damage_1",
+    "label": "Fl\u00e8ches empoisonn\u00e9es",
+    "desc": "Ler\u00e0j\u00e9 inflige 30\u00a0% de d\u00e9g\u00e2ts suppl\u00e9mentaires.",
+    "cost": 35,
+    "icon": "\u25a0",
+    "requires": [],
+    "tier": 1,
+    "effect": { "type": "unit_damage", "value": 0.30 }
+  },
+  {
+    "id": "unit_damage_2",
+    "label": "Blessures qui ne gu\u00e9rissent pas",
+    "desc": "+50\u00a0% d\u00e9g\u00e2ts. Les ennemis touch\u00e9s saignent.",
+    "cost": 80,
+    "icon": "\u25a0\u25a0",
+    "requires": ["unit_damage_1"],
+    "tier": 2,
+    "effect": { "type": "unit_damage", "value": 0.50 }
   },
   {
     "id": "soul_preserve",
     "label": "Pr\u00e9servation des \u00e2mes",
-    "desc": "Les \u00e2mes se d\u00e9stabilisent 50% moins vite.",
+    "desc": "Les \u00e2mes se d\u00e9stabilisent 50\u00a0% moins vite.",
     "cost": 30,
     "icon": "\u25cf",
     "requires": [],
+    "tier": 1,
     "effect": { "type": "soul_decay", "value": -0.50 }
+  },
+  {
+    "id": "soul_preserve_2",
+    "label": "\u00c2me li\u00e9e",
+    "desc": "Les \u00e2mes des pr\u00eatres ne se dissipent plus jamais. +25\u00a0% bonus soul sur toutes livraisons.",
+    "cost": 75,
+    "icon": "\u25cf\u25cf",
+    "requires": ["soul_preserve"],
+    "tier": 2,
+    "effect": { "type": "soul_decay", "value": -0.80 }
   },
   {
     "id": "hauler_capacity",
@@ -78,6 +106,37 @@
     "cost": 55,
     "icon": "\u25b2+",
     "requires": ["hauler_speed_1"],
+    "tier": 2,
     "effect": { "type": "bathin_capacity", "value": 1 }
+  },
+  {
+    "id": "corpse_freshness",
+    "label": "Sel noire des enfers",
+    "desc": "La fra\u00eecheur des corps se d\u00e9grade 40\u00a0% moins vite.",
+    "cost": 40,
+    "icon": "\u2665",
+    "requires": [],
+    "tier": 1,
+    "effect": { "type": "corpse_decay", "value": -0.40 }
+  },
+  {
+    "id": "score_multiplier",
+    "label": "Pacte lucratif",
+    "desc": "Chaque livraison rapporte 20\u00a0% de points suppl\u00e9mentaires.",
+    "cost": 90,
+    "icon": "\u00d7",
+    "requires": ["hauler_speed_2", "pit_speed_1"],
+    "tier": 3,
+    "effect": { "type": "score_mult", "value": 0.20 }
+  },
+  {
+    "id": "extra_hauler",
+    "label": "Invocation suppl\u00e9mentaire",
+    "desc": "Un Bifrons suppl\u00e9mentaire appara\u00eet sur le champ.",
+    "cost": 65,
+    "icon": "\u25b3+",
+    "requires": ["hauler_speed_1"],
+    "tier": 2,
+    "effect": { "type": "spawn_hauler", "value": 1 }
   }
 ]

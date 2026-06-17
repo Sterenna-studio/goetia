@@ -1,20 +1,22 @@
 // ============================================================
-// GOETIA — UpgradeSystem
-// G\u00e8re l'achat et l'application des upgrades.
+// GOETIA — UpgradeSystem v2
+// Corrige label/desc, ajoute effects corpse_decay, score_mult,
+// spawn_hauler. Expose getAll() proprement.
 // ============================================================
 
 import upgradeData from '../data/upgrades.json';
 import type { WorldState } from './types';
-import { spawnPit } from './world';
+import { spawnPit, spawnHauler } from './world';
 
 export interface UpgradeDef {
-  id: string;
-  label: string;
-  desc: string;
-  cost: number;
-  icon: string;
+  id:       string;
+  label:    string;
+  desc:     string;
+  cost:     number;
+  icon:     string;
   requires: string[];
-  effect: { type: string; value: number };
+  tier:     number;
+  effect:   { type: string; value: number };
 }
 
 export const ALL_UPGRADES: UpgradeDef[] = upgradeData as UpgradeDef[];
@@ -22,11 +24,15 @@ export const ALL_UPGRADES: UpgradeDef[] = upgradeData as UpgradeDef[];
 export class UpgradeSystem {
   private purchased = new Set<string>();
 
-  // Multiplicateurs cumul\u00e9s
-  haulerSpeedMult = 1.0;
-  pitSpeedMult = 1.0;
-  unitDamageMult = 1.0;
-  soulDecayMult = 1.0;
+  // Multiplicateurs cumulés
+  haulerSpeedMult    = 1.0;
+  pitSpeedMult       = 1.0;
+  unitDamageMult     = 1.0;
+  soulDecayMult      = 1.0;
+  corpseDecayMult    = 1.0;
+  scoreMult          = 1.0;
+
+  getAll(): UpgradeDef[] { return ALL_UPGRADES; }
 
   canAfford(id: string, score: number): boolean {
     const def = ALL_UPGRADES.find(u => u.id === id);
@@ -42,59 +48,59 @@ export class UpgradeSystem {
     return def.requires.every(r => this.purchased.has(r));
   }
 
-  isPurchased(id: string): boolean {
-    return this.purchased.has(id);
-  }
+  isPurchased(id: string): boolean { return this.purchased.has(id); }
 
   buy(id: string, score: number, world: WorldState): number {
     if (!this.canAfford(id, score)) return score;
     const def = ALL_UPGRADES.find(u => u.id === id)!;
     this.purchased.add(id);
-    const newScore = score - def.cost;
     this._apply(def, world);
-    return newScore;
+    return score - def.cost;
   }
 
   private _apply(def: UpgradeDef, world: WorldState): void {
+    const v = def.effect.value;
     switch (def.effect.type) {
       case 'hauler_speed':
-        this.haulerSpeedMult *= (1 + def.effect.value);
-        for (const h of world.haulers.values()) {
-          h.speed *= (1 + def.effect.value);
-        }
+        this.haulerSpeedMult *= (1 + v);
+        for (const h of world.haulers.values()) h.speed *= (1 + v);
         break;
       case 'pit_speed':
-        this.pitSpeedMult *= (1 + def.effect.value);
+        this.pitSpeedMult *= (1 + v);
         break;
       case 'unit_damage':
-        this.unitDamageMult *= (1 + def.effect.value);
-        for (const u of world.units.values()) {
-          u.damage *= (1 + def.effect.value);
-        }
+        this.unitDamageMult *= (1 + v);
+        for (const u of world.units.values()) u.damage *= (1 + v);
         break;
       case 'soul_decay':
-        this.soulDecayMult *= (1 + def.effect.value);
+        this.soulDecayMult   = Math.max(0.05, this.soulDecayMult + v);
+        break;
+      case 'corpse_decay':
+        this.corpseDecayMult = Math.max(0.05, this.corpseDecayMult + v);
+        break;
+      case 'score_mult':
+        this.scoreMult *= (1 + v);
         break;
       case 'spawn_pit':
         spawnPit(world, { x: 480, y: 370 });
         break;
       case 'bathin_capacity':
         for (const h of world.haulers.values()) {
-          if (h.demonName === 'bathin') h.carryCapacity += def.effect.value;
+          if (h.demonName === 'bathin') h.carryCapacity += v;
         }
+        break;
+      case 'spawn_hauler':
+        spawnHauler(world, { x: 100 + Math.random() * 180, y: 150 + Math.random() * 420 }, 'bifrons');
         break;
     }
   }
 
   reset(): void {
     this.purchased.clear();
-    this.haulerSpeedMult = 1.0;
-    this.pitSpeedMult = 1.0;
-    this.unitDamageMult = 1.0;
-    this.soulDecayMult = 1.0;
+    this.haulerSpeedMult = 1.0; this.pitSpeedMult   = 1.0;
+    this.unitDamageMult  = 1.0; this.soulDecayMult  = 1.0;
+    this.corpseDecayMult = 1.0; this.scoreMult       = 1.0;
   }
 
-  getPurchased(): string[] {
-    return [...this.purchased];
-  }
+  getPurchased(): string[] { return [...this.purchased]; }
 }

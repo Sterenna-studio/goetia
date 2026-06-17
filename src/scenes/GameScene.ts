@@ -1,5 +1,7 @@
 // ============================================================
-// GOETIA — GameScene (vue du dessus + mini-maps de zones)
+// GOETIA — GameScene v2
+// + registerCamera pour les popups monde→écran
+// + sync scoreMult depuis upgrades
 // ============================================================
 
 import Phaser from 'phaser';
@@ -16,14 +18,15 @@ import { seirFlashes } from '../core/systems/SeirSystem';
 import { initParticles, destroyParticles, fxPickup, fxDeliver, fxBlink, fxDust, fxExtract } from '../ui/particles';
 import { installSkullCursor, removeSkullCursor } from '../ui/cursor';
 import { initZoneMaps, destroyZoneMaps, updateZoneMaps } from '../ui/zonemap';
+import { registerCamera, clearScorePopups } from '../ui/scorepopup';
 import { C, CSS } from '../ui/theme';
 
 export class GameScene extends Phaser.Scene {
-  private world!: WorldState;
-  private sim!: Simulation;
-  private gfx!: Phaser.GameObjects.Graphics;
+  private world!:         WorldState;
+  private sim!:           Simulation;
+  private gfx!:           Phaser.GameObjects.Graphics;
   private gameOverShown = false;
-  private prevTasks = new Map<string, string>();
+  private prevTasks =     new Map<string, string>();
 
   constructor() { super({ key: 'GameScene' }); }
 
@@ -36,6 +39,9 @@ export class GameScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#050a05');
 
+    // Enregistre la caméra pour convertir coords monde → écran
+    registerCamera(this.cameras.main);
+
     installSkullCursor();
     initParticles();
     initZoneMaps();
@@ -45,7 +51,11 @@ export class GameScene extends Phaser.Scene {
     initUpgradePanel(
       this.sim.upgrades,
       () => this.sim.score,
-      (id) => this.sim.buyUpgrade(id, this.world),
+      (id) => {
+        this.sim.buyUpgrade(id, this.world);
+        // Sync scoreMult dans ScoringSystem
+        this.sim.scoring.scoreMult = this.sim.upgrades.scoreMult;
+      },
     );
     initPause(
       () => { /* resume */ },
@@ -142,34 +152,24 @@ export class GameScene extends Phaser.Scene {
     const g = this.gfx;
     g.clear();
 
-    // Grille de fond
     g.lineStyle(1, C.GRID, 0.3);
     for (let x = 0; x < 1280; x += 80) g.lineBetween(x, 0, x, 720);
     for (let y = 0; y < 720;  y += 80) g.lineBetween(0, y, 1280, y);
 
-    // Zone de base (quart gauche)
     g.fillStyle(0x0a1a0a, 0.15); g.fillRect(0, 0, 320, 720);
-    g.lineStyle(1, C.ACCENT, 0.08);
-    g.strokeRect(0, 0, 320, 720);
-    // Label base
-    // (texte Phaser uniquement si besoin — HUD gere la lisibilite)
-
-    // Ligne de défaite
+    g.lineStyle(1, C.ACCENT, 0.08); g.strokeRect(0, 0, 320, 720);
     g.lineStyle(2, 0x220000, 0.8); g.lineBetween(4, 0, 4, 720);
     g.fillStyle(0x110000, 0.2);   g.fillRect(0, 0, 8, 720);
 
-    // Zones bénies
     for (const zone of this.world.blessedZones) {
       g.lineStyle(1, 0xffffff, 0.06); g.strokeCircle(zone.pos.x, zone.pos.y, zone.radius);
       g.fillStyle(0xffffff, 0.02);    g.fillCircle(zone.pos.x, zone.pos.y, zone.radius);
     }
 
-    // Fosses
     for (const pit of this.world.pits.values()) {
       const active = pit.state === 'processing' || pit.state === 'loading';
       g.lineStyle(2, active ? C.ACCENT : C.PIT_IDLE, active ? 0.9 : 0.4);
       g.strokeRect(pit.pos.x - 20, pit.pos.y - 20, 40, 40);
-      // Coins accent
       const s = 6;
       g.lineStyle(2, C.ACCENT, active ? 0.8 : 0.2);
       ([[pit.pos.x-20,pit.pos.y-20],[pit.pos.x+20,pit.pos.y-20],[pit.pos.x-20,pit.pos.y+20],[pit.pos.x+20,pit.pos.y+20]] as [number,number][]).forEach(([cx,cy]) => {
@@ -183,7 +183,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Cadavres
     for (const corpse of this.world.corpses.values()) {
       const r = corpse.blessed ? 5 : 7;
       g.fillStyle(corpse.blessed ? C.BLESSED : C.CORPSE_FRESH, corpse.freshness01 * 0.8 + 0.2);
@@ -199,7 +198,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Âmes
     for (const soul of this.world.souls.values()) {
       g.fillStyle(C.SOUL, soul.stability01 * 0.8 + 0.2);
       g.fillCircle(soul.pos.x, soul.pos.y - 14, 4);
@@ -207,10 +205,8 @@ export class GameScene extends Phaser.Scene {
       g.strokeCircle(soul.pos.x, soul.pos.y - 14, 7);
     }
 
-    // Porteurs
     for (const hauler of this.world.haulers.values()) this._renderHauler(g, hauler);
 
-    // Unités (Leraje — carré + cercle de portée)
     for (const unit of this.world.units.values()) {
       g.fillStyle(C.UNIT, 0.9);    g.fillRect(unit.pos.x-5, unit.pos.y-5, 10, 10);
       g.lineStyle(1, C.UNIT_BORDER); g.strokeRect(unit.pos.x-5, unit.pos.y-5, 10, 10);
@@ -221,11 +217,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Ennemis
     for (const enemy of this.world.enemies.values()) {
       const col  = enemy.type === 'knight' ? C.ENEMY_KNIGHT : enemy.type === 'priest' ? C.ENEMY_PRIEST : C.ENEMY_SOL;
       const size = enemy.type === 'knight' ? 13 : enemy.type === 'priest' ? 7 : 9;
-
       if (enemy.type === 'knight') {
         g.fillStyle(col);
         g.fillTriangle(enemy.pos.x, enemy.pos.y-size, enemy.pos.x-size, enemy.pos.y, enemy.pos.x, enemy.pos.y+size);
@@ -240,7 +234,6 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(col); g.fillCircle(enemy.pos.x, enemy.pos.y, size);
         g.lineStyle(1, 0x660000, 0.4); g.strokeCircle(enemy.pos.x, enemy.pos.y, size);
       }
-
       const hp = enemy.hp / enemy.maxHp;
       g.fillStyle(C.ENEMY_HP_BG); g.fillRect(enemy.pos.x-13, enemy.pos.y-size-8, 26, 3);
       g.fillStyle(col);            g.fillRect(enemy.pos.x-13, enemy.pos.y-size-8, 26*hp, 3);
@@ -268,7 +261,6 @@ export class GameScene extends Phaser.Scene {
       g.fillTriangle(hauler.pos.x, hauler.pos.y-13, hauler.pos.x-11, hauler.pos.y+10, hauler.pos.x+11, hauler.pos.y+10);
       g.lineStyle(1, base, 0.45);
       g.strokeTriangle(hauler.pos.x, hauler.pos.y-13, hauler.pos.x-11, hauler.pos.y+10, hauler.pos.x+11, hauler.pos.y+10);
-
     } else if (isBathin) {
       const c2 = !!hauler.carriedCorpse2Id;
       g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
@@ -277,7 +269,6 @@ export class GameScene extends Phaser.Scene {
       g.fillTriangle(hauler.pos.x+3, hauler.pos.y-11, hauler.pos.x-6, hauler.pos.y+9, hauler.pos.x+12, hauler.pos.y+9);
       g.lineStyle(1, base, 0.35);
       g.strokeTriangle(hauler.pos.x-3, hauler.pos.y-11, hauler.pos.x-12, hauler.pos.y+9, hauler.pos.x+6, hauler.pos.y+9);
-
     } else if (isExtract) {
       const ex = hauler.task.kind === 'extract';
       g.fillStyle(ex ? 0xffffff : base, ex ? 0.95 : 0.8);
@@ -292,7 +283,6 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(base, 0.85);    g.fillRect(hauler.pos.x-12, hauler.pos.y+14, 24*pct, 3);
         g.lineStyle(1, base, 0.25); g.strokeRect(hauler.pos.x-12, hauler.pos.y+14, 24, 3);
       }
-
     } else {
       const moving = hauler.task.kind === 'pickup' || hauler.task.kind === 'deliver';
       g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base, moving ? 1 : 0.75);
@@ -313,9 +303,11 @@ export class GameScene extends Phaser.Scene {
     removeSkullCursor();
     destroyParticles();
     destroyZoneMaps();
+    clearScorePopups();
     ['goetia-hud','goetia-codex','goetia-radial','goetia-upgrades','goetia-pause','hud-best',
-     'goetia-hud-style','goetia-codex-style','goetia-radial-style',
-     'goetia-upgrades-style','goetia-pause-style'].forEach(id => document.getElementById(id)?.remove());
+     'goetia-hud-style','goetia-codex-style','goetia-radial-style','goetia-hud-btns-style',
+     'goetia-upgrades-style','goetia-pause-style','goetia-wave-announce','hud-rest-bar',
+     'goetia-cursor-style'].forEach(id => document.getElementById(id)?.remove());
   }
 
   private _showGameOver(bestScore: number, bestWave: number): void {
@@ -323,13 +315,13 @@ export class GameScene extends Phaser.Scene {
     const wave  = this.sim.waveSystem.currentWave;
     const isNR  = score >= bestScore && wave > 0;
     this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.9).setDepth(10);
-    this.add.text(640, 180, 'GOETIA', { fontSize:'14px', color:'#1a4422', fontFamily:'monospace', letterSpacing: 20 }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 180, 'GOETIA', { fontSize:'14px', color:'#1a4422', fontFamily:'monospace', letterSpacing:20 }).setOrigin(0.5).setDepth(11);
     this.add.text(640, 230, 'GAME OVER', { fontSize:'52px', color:'#cc0000', fontFamily:'monospace', fontStyle:'bold' }).setOrigin(0.5).setDepth(11);
-    if (isNR) this.add.text(640, 292, '★ NOUVEAU RECORD ★', { fontSize:'14px', color:'#33ff66', fontFamily:'monospace', letterSpacing:10 }).setOrigin(0.5).setDepth(11);
+    if (isNR) this.add.text(640, 292, '\u2605 NOUVEAU RECORD \u2605', { fontSize:'14px', color:'#33ff66', fontFamily:'monospace', letterSpacing:10 }).setOrigin(0.5).setDepth(11);
     this.add.text(640, 336, `${score} pts`, { fontSize:'34px', color:'#33ff66', fontFamily:'monospace', fontStyle:'bold' }).setOrigin(0.5).setDepth(11);
     this.add.text(640, 378, `vague ${wave}`, { fontSize:'18px', color:'#9933ff', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
     this.add.text(640, 412, `${this.sim.upgrades.getPurchased().length} rituels`, { fontSize:'12px', color:'#2a4433', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 450, '―'.repeat(30), { fontSize:'10px', color:'#1a3320', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 450, '\u2015'.repeat(30), { fontSize:'10px', color:'#1a3320', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
     this.add.text(640, 468, `record : ${bestScore} pts  |  vague ${bestWave}`, { fontSize:'12px', color:'#2a4433', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
     this.add.text(640, 526, '[R] recommencer', { fontSize:'16px', color:'#33ff66', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
   }
@@ -338,16 +330,9 @@ export class GameScene extends Phaser.Scene {
 function updateBestHUD(score: number, wave: number): void {
   let el = document.getElementById('hud-best');
   if (!el) {
-    el = document.createElement('div');
-    el.id = 'hud-best';
-    el.style.cssText = `
-      position:fixed; bottom: 56px; right: 248px;
-      font-family:monospace; font-size:10px; color:#1a4422;
-      background:rgba(0,0,0,0.7); border: 1px solid #0d2211;
-      padding:3px 10px; pointer-events:none; z-index:101;
-      letter-spacing: 0.08em;
-    `;
+    el = document.createElement('div'); el.id = 'hud-best';
+    el.style.cssText = `position:fixed;bottom:56px;right:248px;font-family:monospace;font-size:10px;color:#1a4422;background:rgba(0,0,0,0.7);border:1px solid #0d2211;padding:3px 10px;pointer-events:none;z-index:101;letter-spacing:0.08em;`;
     document.body.appendChild(el);
   }
-  el.textContent = `★ record : ${score} pts | v.${wave}`;
+  el.textContent = `\u2605 record : ${score} pts | v.${wave}`;
 }
