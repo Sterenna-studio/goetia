@@ -1,14 +1,13 @@
 // ============================================================
 // GOETIA — GameScene
-// Shell Phaser : init monde, boucle update, rendu debug.
-// Clic gauche = spawn Bifrons. [R] = restart.
 // ============================================================
 
 import Phaser from 'phaser';
 import { createWorld, spawnCorpse, spawnHauler, spawnPit, spawnEnemy } from '../core/world';
 import { Simulation } from '../core/sim';
 import type { WorldState } from '../core/types';
-import { initHUD, updateHUD } from '../ui/hud';
+import { initHUD, initHUDCodexButton, updateHUD } from '../ui/hud';
+import { initCodex, toggleCodex, isCodexVisible } from '../ui/codex';
 
 export class GameScene extends Phaser.Scene {
   private world!: WorldState;
@@ -25,8 +24,9 @@ export class GameScene extends Phaser.Scene {
     this.gameOverShown = false;
 
     initHUD();
+    initCodex();
+    initHUDCodexButton(() => toggleCodex());
 
-    // Scène initiale
     spawnPit(this.world, { x: 580, y: 300 });
     spawnPit(this.world, { x: 580, y: 440 });
     spawnHauler(this.world, { x: 80, y: 250 }, 'bifrons');
@@ -35,14 +35,13 @@ export class GameScene extends Phaser.Scene {
     spawnEnemy(this.world, { x: 1150, y: 280 });
     spawnEnemy(this.world, { x: 1220, y: 430 });
 
-    // Clic gauche = spawn Bifrons à la position du clic
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-      if (this.sim.gameOver) return;
+      if (this.sim.gameOver || isCodexVisible()) return;
       spawnHauler(this.world, { x: ptr.x, y: ptr.y }, 'bifrons');
     });
 
-    // [R] = restart
     this.input.keyboard?.addKey('R').on('down', () => this.scene.restart());
+    this.input.keyboard?.addKey('C').on('down', () => toggleCodex());
   }
 
   update(_time: number, delta: number): void {
@@ -58,27 +57,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private _showGameOver(): void {
-    // Overlay game over
-    const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
-    overlay.setDepth(10);
-
+    this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7).setDepth(10);
     this.add.text(640, 280, 'GAME OVER', {
-      fontSize: '64px',
-      color: '#cc4444',
-      fontFamily: 'monospace',
-      fontStyle: 'bold',
+      fontSize: '64px', color: '#cc4444', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(11);
-
     this.add.text(640, 370, `Score : ${this.sim.score}`, {
-      fontSize: '32px',
-      color: '#ffffff',
-      fontFamily: 'monospace',
+      fontSize: '32px', color: '#ffffff', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(11);
-
     this.add.text(640, 440, '[R] Recommencer', {
-      fontSize: '22px',
-      color: '#ffaa44',
-      fontFamily: 'monospace',
+      fontSize: '22px', color: '#ffaa44', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(11);
   }
 
@@ -86,11 +73,9 @@ export class GameScene extends Phaser.Scene {
     const g = this.gfx;
     g.clear();
 
-    // Ligne de défense (x=0)
     g.lineStyle(1, 0x440000, 0.4);
     g.lineBetween(4, 0, 4, 720);
 
-    // Fosses
     for (const pit of this.world.pits.values()) {
       g.lineStyle(2, pit.state === 'processing' ? 0xffaa00 : 0x444466);
       g.strokeRect(pit.pos.x - 20, pit.pos.y - 20, 40, 40);
@@ -101,7 +86,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Cadavres
     for (const corpse of this.world.corpses.values()) {
       g.fillStyle(0x886644, corpse.freshness01);
       g.fillCircle(corpse.pos.x, corpse.pos.y, 8);
@@ -111,13 +95,11 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Âmes flottantes
     for (const soul of this.world.souls.values()) {
       g.fillStyle(0x88ccff, soul.stability01);
       g.fillCircle(soul.pos.x, soul.pos.y - 12, 4);
     }
 
-    // Haulers (Bifrons)
     for (const hauler of this.world.haulers.values()) {
       g.fillStyle(hauler.carriedCorpseId ? 0xcc88ff : 0x9966cc);
       g.fillTriangle(
@@ -135,7 +117,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Unités (Leraje)
     for (const unit of this.world.units.values()) {
       g.fillStyle(0x44cc88);
       g.fillRect(unit.pos.x - 6, unit.pos.y - 6, 12, 12);
@@ -145,7 +126,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Ennemis
     for (const enemy of this.world.enemies.values()) {
       g.fillStyle(0xcc4444);
       g.fillCircle(enemy.pos.x, enemy.pos.y, 10);

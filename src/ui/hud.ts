@@ -18,6 +18,7 @@ export function initHUD(): void {
       <span id="hud-tick">Tick: 0</span>
       <span id="hud-wave">Vague: —</span>
       <span id="hud-score">Score: 0</span>
+      <button id="hud-codex-btn">[C] Codex</button>
       <span id="hud-restart">[R] Restart &nbsp; [Clic] Bifrons</span>
     </div>
     <div id="hud-resources">
@@ -66,15 +67,27 @@ export function initHUD(): void {
     #hud-top {
       position: absolute; top: 10px; left: 50%;
       transform: translateX(-50%);
-      display: flex; gap: 24px;
+      display: flex; gap: 24px; align-items: center;
       background: rgba(0,0,0,0.6);
       padding: 6px 18px; border-radius: 6px;
       font-size: 13px; letter-spacing: 0.04em;
       white-space: nowrap;
+      pointer-events: all;
     }
     #hud-restart { color: #ffaa44; }
     #hud-wave { color: #88ccff; }
     #hud-score { color: #ffdd44; }
+    #hud-codex-btn {
+      background: none;
+      border: 1px solid #554;
+      color: #aa9966;
+      cursor: pointer;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    #hud-codex-btn:hover { border-color: #cc4444; color: #ffdd44; }
     #hud-resources {
       position: absolute; bottom: 18px; left: 50%;
       transform: translateX(-50%);
@@ -105,6 +118,11 @@ export function initHUD(): void {
   const oldStyle = document.getElementById('goetia-hud-style');
   if (oldStyle) oldStyle.remove();
   document.head.appendChild(style);
+}
+
+export function initHUDCodexButton(onToggle: () => void): void {
+  const btn = document.getElementById('hud-codex-btn');
+  if (btn) btn.addEventListener('click', onToggle);
 }
 
 export function updateHUD(world: WorldState, wave = 0, score = 0, gameOver = false): void {
