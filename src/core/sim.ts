@@ -6,6 +6,7 @@ import type { WorldState, SimContext, GameSystem, GameCommand } from './types';
 import { NecromancySystem } from './systems/NecromancySystem';
 import { HaulingSystem }    from './systems/HaulingSystem';
 import { ExtractionSystem } from './systems/ExtractionSystem';
+import { SeirSystem }       from './systems/SeirSystem';
 import { SpawnSystem }      from './systems/SpawnSystem';
 import { CombatSystem }     from './systems/CombatSystem';
 import { WaveSystem }       from './systems/WaveSystem';
@@ -13,7 +14,7 @@ import { BlessSystem }      from './systems/BlessSystem';
 import { UpgradeSystem }    from './upgrades';
 import { spawnHauler }      from './world';
 
-const FIXED_STEP_MS = 100;
+const FIXED_STEP_MS  = 100;
 const SCORE_PER_KILL = 5;
 
 export class Simulation {
@@ -37,6 +38,7 @@ export class Simulation {
       new NecromancySystem(),
       new ExtractionSystem(),
       new HaulingSystem(),
+      new SeirSystem(),      // après HaulingSystem pour ne pas double-assigner
       new SpawnSystem(),
       this.combatSystem,
       this.waveSystem,

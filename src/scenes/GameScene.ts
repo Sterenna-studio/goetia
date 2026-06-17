@@ -12,6 +12,7 @@ import { initRadial, showRadial, hideRadial, isRadialVisible, getSelectedDemon, 
 import { initUpgradePanel, toggleUpgradePanel, isUpgradePanelVisible } from '../ui/upgradepanel';
 import { initPause, togglePause, isPaused, hidePause } from '../ui/pause';
 import { saveBest, saveRun, loadBest } from '../core/persistence';
+import { seirFlashes } from '../core/systems/SeirSystem';
 
 export class GameScene extends Phaser.Scene {
   private world!: WorldState;
@@ -142,12 +143,8 @@ export class GameScene extends Phaser.Scene {
     for (const corpse of this.world.corpses.values()) {
       g.fillStyle(corpse.blessed ? 0xffffff : 0x886644, corpse.freshness01);
       g.fillCircle(corpse.pos.x, corpse.pos.y, corpse.blessed ? 6 : 8);
-      if (corpse.soulAttached) { g.lineStyle(1, 0x88ccff, 0.6); g.strokeCircle(corpse.pos.x, corpse.pos.y, 14); }
-      // Anneau orange = extraction en cours
-      if (corpse.extractorId) {
-        g.lineStyle(1, 0xcc8844, 0.55);
-        g.strokeCircle(corpse.pos.x, corpse.pos.y, 18);
-      }
+      if (corpse.soulAttached)  { g.lineStyle(1, 0x88ccff, 0.6);  g.strokeCircle(corpse.pos.x, corpse.pos.y, 14); }
+      if (corpse.extractorId)   { g.lineStyle(1, 0xcc8844, 0.55); g.strokeCircle(corpse.pos.x, corpse.pos.y, 18); }
       if (corpse.blessed) {
         g.lineStyle(1, 0xffffff, 0.5);
         g.lineBetween(corpse.pos.x - 5, corpse.pos.y, corpse.pos.x + 5, corpse.pos.y);
@@ -157,15 +154,41 @@ export class GameScene extends Phaser.Scene {
     for (const soul of this.world.souls.values()) {
       g.fillStyle(0x88ccff, soul.stability01); g.fillCircle(soul.pos.x, soul.pos.y - 12, 4);
     }
+
     const haulerColors: Record<string, number> = {
       bifrons: 0x9966cc, bathin: 0x44aacc, seir: 0xffaa44,
-      murmur: 0xcc8844, gamigin: 0xaabb44,
+      murmur:  0xcc8844, gamigin: 0xaabb44,
     };
-    for (const hauler of this.world.haulers.values()) {
-      const base = haulerColors[hauler.demonName] ?? 0x9966cc;
-      const isExtractor = hauler.demonName === 'murmur' || hauler.demonName === 'gamigin';
 
-      if (isExtractor) {
+    for (const hauler of this.world.haulers.values()) {
+      const base        = haulerColors[hauler.demonName] ?? 0x9966cc;
+      const isExtractor = hauler.demonName === 'murmur' || hauler.demonName === 'gamigin';
+      const isSeir      = hauler.demonName === 'seir';
+      const flashTicks  = seirFlashes.get(hauler.id) ?? 0;
+
+      if (isSeir) {
+        // Halo de téléportation : cercle blanc qui se dissipe
+        if (flashTicks > 0) {
+          const alpha = flashTicks / 3;
+          g.fillStyle(0xffffff, alpha * 0.45);
+          g.fillCircle(hauler.pos.x, hauler.pos.y, 28);
+          g.lineStyle(1.5, 0xffaa44, alpha);
+          g.strokeCircle(hauler.pos.x, hauler.pos.y, 28);
+        }
+        // Corps : triangle orange plus grand avec double contour
+        g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
+        g.fillTriangle(
+          hauler.pos.x, hauler.pos.y - 12,
+          hauler.pos.x - 10, hauler.pos.y + 10,
+          hauler.pos.x + 10, hauler.pos.y + 10,
+        );
+        g.lineStyle(1, base, 0.6);
+        g.strokeTriangle(
+          hauler.pos.x, hauler.pos.y - 12,
+          hauler.pos.x - 10, hauler.pos.y + 10,
+          hauler.pos.x + 10, hauler.pos.y + 10,
+        );
+      } else if (isExtractor) {
         // Losange ◆
         g.fillStyle(hauler.task.kind === 'extract' ? 0xffffff : base);
         g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x + 8, hauler.pos.y, hauler.pos.x, hauler.pos.y + 10);
@@ -174,12 +197,12 @@ export class GameScene extends Phaser.Scene {
           const c = this.world.corpses.get(hauler.task.corpseId);
           if (c) { g.lineStyle(1, base, 0.35); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
           const totalTicks = hauler.demonName === 'gamigin' ? 20 : 40;
-          const progress = 1 - hauler.task.ticksLeft / totalTicks;
-          g.fillStyle(base, 0.7);   g.fillRect(hauler.pos.x - 12, hauler.pos.y + 13, 24 * progress, 3);
+          const progress   = 1 - hauler.task.ticksLeft / totalTicks;
+          g.fillStyle(base, 0.7);    g.fillRect(hauler.pos.x - 12, hauler.pos.y + 13, 24 * progress, 3);
           g.lineStyle(1, base, 0.3); g.strokeRect(hauler.pos.x - 12, hauler.pos.y + 13, 24, 3);
         }
       } else {
-        // Triangle ▲ porteur
+        // Triangle ▲ porteur standard
         g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
         g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x - 8, hauler.pos.y + 8, hauler.pos.x + 8, hauler.pos.y + 8);
         if (hauler.task.kind === 'pickup') {
@@ -192,6 +215,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+
     for (const unit of this.world.units.values()) {
       g.fillStyle(0x44cc88); g.fillRect(unit.pos.x - 6, unit.pos.y - 6, 12, 12);
       if (unit.targetId) {
@@ -199,6 +223,7 @@ export class GameScene extends Phaser.Scene {
         if (t) { g.lineStyle(1, 0x44cc88, 0.25); g.lineBetween(unit.pos.x, unit.pos.y, t.pos.x, t.pos.y); }
       }
     }
+
     const enemyColors: Record<string, number> = { soldier: 0xcc4444, priest: 0xffffff, knight: 0x886622 };
     for (const enemy of this.world.enemies.values()) {
       const col  = enemyColors[enemy.type] ?? 0xcc4444;
