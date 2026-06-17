@@ -24,12 +24,12 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy via SSH rsync
-        uses: easingthemes/ssh-deploy@main
+      - name: Deploy via SCP
+        uses: appleboy/scp-action@v0.1.7
         with:
-          SSH_PRIVATE_KEY: ${{ secrets.OVH_SSH_KEY }}
-          ARGS: "-avzr --delete"
-          SOURCE: "dist/"
-          REMOTE_HOST: ${{ secrets.OVH_HOST }}
-          REMOTE_USER: ${{ secrets.OVH_USER }}
-          TARGET: ${{ secrets.OVH_PATH }}/goetia/
+          host: ${{ secrets.OVH_HOST }}
+          username: ${{ secrets.OVH_USER }}
+          key: ${{ secrets.OVH_SSH_KEY }}
+          source: "dist/*"
+          target: ${{ secrets.OVH_PATH }}/goetia/
+          strip_components: 1
