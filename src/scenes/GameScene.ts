@@ -10,6 +10,7 @@ import { initHUD, initHUDButtons, updateHUD, updateActiveDemon } from '../ui/hud
 import { initCodex, toggleCodex, isCodexVisible } from '../ui/codex';
 import { initRadial, showRadial, hideRadial, isRadialVisible, getSelectedDemon, selectDemonByKey } from '../ui/radial';
 import { initUpgradePanel, toggleUpgradePanel, isUpgradePanelVisible } from '../ui/upgradepanel';
+import { initPause, togglePause, isPaused, hidePause } from '../ui/pause';
 import { saveBest, saveRun, loadBest } from '../core/persistence';
 
 export class GameScene extends Phaser.Scene {
@@ -31,9 +32,18 @@ export class GameScene extends Phaser.Scene {
     initRadial(() => updateActiveDemon(getSelectedDemon()));
     initUpgradePanel(this.sim.upgrades, () => this.sim.score, (id) => this.sim.buyUpgrade(id, this.world));
     initHUDButtons(() => toggleCodex(), () => toggleUpgradePanel());
+    initPause(
+      () => { /* resume: rien à faire, isPaused() suffit */ },
+      () => this.scene.restart(),
+      () => {
+        // Nettoie les overlays DOM avant de revenir au titre
+        hidePause();
+        this._destroyOverlays();
+        this.scene.start('TitleScene');
+      },
+    );
     updateActiveDemon(getSelectedDemon());
 
-    // Affiche le best score dans le HUD dès le lancement
     const best = loadBest();
     if (best.score > 0) updateBestHUD(best.score, best.wave);
 
@@ -46,7 +56,7 @@ export class GameScene extends Phaser.Scene {
     spawnEnemy(this.world, { x: 1220, y: 430 }, 20, 5, 1.0, 'soldier');
 
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-      if (this.sim.gameOver || isCodexVisible() || isUpgradePanelVisible()) return;
+      if (this.sim.gameOver || isPaused() || isCodexVisible() || isUpgradePanelVisible()) return;
       if (ptr.rightButtonDown()) { showRadial(ptr.x, ptr.y); return; }
       if (isRadialVisible()) { hideRadial(); return; }
       const demon = getSelectedDemon();
@@ -54,18 +64,39 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.game.canvas.addEventListener('contextmenu', e => e.preventDefault());
-    this.input.keyboard?.addKey('R').on('down', () => this.scene.restart());
-    this.input.keyboard?.addKey('C').on('down', () => toggleCodex());
-    this.input.keyboard?.addKey('U').on('down', () => toggleUpgradePanel());
+
+    // Touches
+    this.input.keyboard?.addKey('ESC').on('down', () => {
+      if (this.sim.gameOver) return;
+      if (isCodexVisible() || isUpgradePanelVisible()) return;
+      togglePause();
+    });
+    this.input.keyboard?.addKey('P').on('down', () => {
+      if (this.sim.gameOver) return;
+      if (isCodexVisible() || isUpgradePanelVisible()) return;
+      togglePause();
+    });
+    this.input.keyboard?.addKey('R').on('down', () => {
+      if (!isPaused()) this.scene.restart();
+    });
+    this.input.keyboard?.addKey('C').on('down', () => {
+      if (!isPaused()) toggleCodex();
+    });
+    this.input.keyboard?.addKey('U').on('down', () => {
+      if (!isPaused()) toggleUpgradePanel();
+    });
     ['ONE', 'TWO', 'THREE'].forEach((k, i) => {
       this.input.keyboard?.addKey(k).on('down', () => {
+        if (isPaused()) return;
         selectDemonByKey(String(i + 1)); updateActiveDemon(getSelectedDemon());
       });
     });
   }
 
   update(_time: number, delta: number): void {
-    this.sim.update(this.world, delta);
+    // Sim gelée si pause
+    if (!isPaused()) this.sim.update(this.world, delta);
+
     if (this.sim.gameOver && !this.gameOverShown) {
       this.gameOverShown = true;
       const best = saveBest(this.sim.score, this.sim.waveSystem.currentWave);
@@ -76,9 +107,15 @@ export class GameScene extends Phaser.Scene {
     updateHUD(this.world, this.sim.waveSystem.currentWave, this.sim.score, this.sim.gameOver);
   }
 
+  private _destroyOverlays(): void {
+    ['goetia-hud', 'goetia-codex', 'goetia-radial', 'goetia-upgrades', 'goetia-pause', 'hud-best',
+     'goetia-hud-buttons', 'goetia-codex-style', 'goetia-radial-style', 'goetia-upgrades-style',
+     'goetia-pause-style'].forEach(id => document.getElementById(id)?.remove());
+  }
+
   private _showGameOver(bestScore: number, bestWave: number): void {
     const score = this.sim.score;
-    const wave = this.sim.waveSystem.currentWave;
+    const wave  = this.sim.waveSystem.currentWave;
     const isNewBest = score >= bestScore && wave > 0;
 
     this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.75).setDepth(10);
@@ -101,16 +138,12 @@ export class GameScene extends Phaser.Scene {
     this.add.text(640, 410, `Upgrades achetées : ${this.sim.upgrades.getPurchased().length}`, {
       fontSize: '16px', color: '#aa9966', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(11);
-
-    // Séparateur
     this.add.text(640, 450, '―――――――――――――――――', {
       fontSize: '14px', color: '#333', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(11);
-
     this.add.text(640, 475, `Meilleur score : ${bestScore}  |  Meilleure vague : ${bestWave}`, {
       fontSize: '15px', color: '#ffaa44', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(11);
-
     this.add.text(640, 530, '[R] Recommencer', {
       fontSize: '22px', color: '#ffaa44', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(11);
@@ -191,7 +224,7 @@ export class GameScene extends Phaser.Scene {
       }
       const hpRatio = enemy.hp / enemy.maxHp;
       g.fillStyle(0x333333); g.fillRect(enemy.pos.x - 14, enemy.pos.y - 22, 28, 4);
-      g.fillStyle(col); g.fillRect(enemy.pos.x - 14, enemy.pos.y - 22, 28 * hpRatio, 4);
+      g.fillStyle(col);      g.fillRect(enemy.pos.x - 14, enemy.pos.y - 22, 28 * hpRatio, 4);
       if (enemy.type === 'knight' && enemy.armor > 0) {
         g.lineStyle(1, 0xffdd44, 0.6);
         g.strokeCircle(enemy.pos.x, enemy.pos.y, size + 3);
