@@ -1,13 +1,14 @@
 // ============================================================
-// GOETIA — HaulingSystem (Bifrons)
-// Réservation, ramassage et livraison des corps à la fosse.
+// GOETIA — HaulingSystem (Bifrons uniquement)
+// Bathin et Seir ont leurs propres systèmes.
 // ============================================================
 
 import type { GameSystem, SimContext, WorldState, Hauler } from '../types';
 import { getAvailableCorpses, getEmptyPits, moveToward, dist } from '../world';
 
-const PICKUP_RANGE = 8;
+const PICKUP_RANGE  = 8;
 const DELIVER_RANGE = 8;
+const STANDARD_HAULERS = new Set(['bifrons', 'murmur', 'gamigin', 'leraje']);
 
 export class HaulingSystem implements GameSystem {
   readonly name = 'HaulingSystem';
@@ -15,6 +16,7 @@ export class HaulingSystem implements GameSystem {
   update(_ctx: SimContext, world: WorldState): void {
     for (const hauler of world.haulers.values()) {
       if (hauler.hp <= 0) continue;
+      if (!STANDARD_HAULERS.has(hauler.demonName)) continue; // Bathin + Seir exclus
       this._tick(hauler, world);
     }
   }
@@ -30,7 +32,7 @@ export class HaulingSystem implements GameSystem {
 
   private _assignTask(hauler: Hauler, world: WorldState): void {
     const corpses = getAvailableCorpses(world);
-    const pits = getEmptyPits(world);
+    const pits    = getEmptyPits(world);
     if (corpses.length === 0 || pits.length === 0) return;
     corpses.sort((a, b) => dist(hauler.pos, a.pos) - dist(hauler.pos, b.pos));
     const target = corpses[0];
@@ -58,7 +60,7 @@ export class HaulingSystem implements GameSystem {
 
   private _doDeliver(hauler: Hauler, world: WorldState): void {
     if (hauler.task.kind !== 'deliver') return;
-    const pit = world.pits.get(hauler.task.targetPitId);
+    const pit    = world.pits.get(hauler.task.targetPitId);
     const corpse = world.corpses.get(hauler.task.corpseId);
     if (!pit || !corpse) { hauler.task = { kind: 'idle' }; hauler.carriedCorpseId = undefined; return; }
 
@@ -66,12 +68,12 @@ export class HaulingSystem implements GameSystem {
     corpse.pos = { ...hauler.pos };
 
     if (dist(hauler.pos, pit.pos) < DELIVER_RANGE) {
-      pit.state = 'processing';
-      pit.corpseId = corpse.id;
-      pit.soulId = corpse.soulId;
-      pit.progressTick = 30;
+      pit.state            = 'processing';
+      pit.corpseId         = corpse.id;
+      pit.soulId           = corpse.soulId;
+      pit.progressTick     = 30;
       pit.assignedUnitType = 'leraje';
-      corpse.reservedBy = undefined;
+      corpse.reservedBy    = undefined;
       hauler.carriedCorpseId = undefined;
       hauler.task = { kind: 'idle' };
     }

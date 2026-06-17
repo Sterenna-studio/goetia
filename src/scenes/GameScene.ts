@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { createWorld, spawnCorpse, spawnHauler, spawnPit, spawnEnemy } from '../core/world';
 import { Simulation } from '../core/sim';
-import type { WorldState, DemonName } from '../core/types';
+import type { WorldState, DemonName, Hauler } from '../core/types';
 import { initHUD, initHUDButtons, updateHUD, updateActiveDemon, updatePauseButton } from '../ui/hud';
 import { initCodex, toggleCodex, isCodexVisible } from '../ui/codex';
 import { initRadial, showRadial, hideRadial, isRadialVisible, getSelectedDemon, selectDemonByKey } from '../ui/radial';
@@ -13,12 +13,24 @@ import { initUpgradePanel, toggleUpgradePanel, isUpgradePanelVisible } from '../
 import { initPause, togglePause, isPaused, hidePause } from '../ui/pause';
 import { saveBest, saveRun, loadBest } from '../core/persistence';
 import { seirFlashes } from '../core/systems/SeirSystem';
+import { initParticles, destroyParticles, fxPickup, fxDeliver, fxBlink, fxDust, fxExtract } from '../ui/particles';
+
+const HAULER_COLORS: Record<string, number> = {
+  bifrons: 0x9966cc, bathin: 0x44aacc, seir: 0xffaa44,
+  murmur:  0xcc8844, gamigin: 0xaabb44,
+};
+const HAULER_COLORS_CSS: Record<string, string> = {
+  bifrons: '#9966cc', bathin: '#44aacc', seir: '#ffaa44',
+  murmur:  '#cc8844', gamigin: '#aabb44',
+};
 
 export class GameScene extends Phaser.Scene {
   private world!: WorldState;
   private sim!: Simulation;
   private gfx!: Phaser.GameObjects.Graphics;
   private gameOverShown = false;
+  // Suivi des tâches précédentes pour déclencher les FX au changement
+  private prevTasks = new Map<string, string>();
 
   constructor() { super({ key: 'GameScene' }); }
 
@@ -27,7 +39,9 @@ export class GameScene extends Phaser.Scene {
     this.sim   = new Simulation();
     this.gfx   = this.add.graphics();
     this.gameOverShown = false;
+    this.prevTasks.clear();
 
+    initParticles();
     initHUD();
     initCodex();
     initRadial(() => updateActiveDemon(getSelectedDemon()));
@@ -89,7 +103,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    if (!isPaused()) this.sim.update(this.world, delta);
+    if (!isPaused()) {
+      this.sim.update(this.world, delta);
+      this._emitParticles();
+    }
     updatePauseButton(isPaused());
 
     if (this.sim.gameOver && !this.gameOverShown) {
@@ -102,7 +119,45 @@ export class GameScene extends Phaser.Scene {
     updateHUD(this.world, this.sim.waveSystem.currentWave, this.sim.score, this.sim.gameOver);
   }
 
+  /** Détecte les transitions de tâche pour émettre les effets visuels. */
+  private _emitParticles(): void {
+    for (const hauler of this.world.haulers.values()) {
+      const prev = this.prevTasks.get(hauler.id) ?? 'idle';
+      const curr = hauler.task.kind;
+      const css  = HAULER_COLORS_CSS[hauler.demonName] ?? '#9966cc';
+
+      // Pickup : porteur vient de charger un cadavre
+      if (prev !== 'deliver' && prev !== 'pickup2' && curr === 'deliver') {
+        fxPickup(hauler.pos.x, hauler.pos.y, css);
+      }
+      // Pickup2 Bathin : a chargé le 2e cadavre
+      if (prev === 'pickup2' && curr === 'deliver') {
+        fxPickup(hauler.pos.x, hauler.pos.y, '#44aacc');
+      }
+      // Délivraison à la fosse
+      if (prev === 'deliver' && curr === 'idle') {
+        fxDeliver(hauler.pos.x, hauler.pos.y, '#ffaa00');
+      }
+      // Blink Seir
+      if (hauler.demonName === 'seir' && (seirFlashes.get(hauler.id) ?? 0) === 3) {
+        fxBlink(hauler.pos.x, hauler.pos.y);
+      }
+      // Traînée de poussière porteurs normaux en mouvement
+      if ((curr === 'pickup' || curr === 'deliver') &&
+          hauler.demonName !== 'seir' && hauler.demonName !== 'murmur' && hauler.demonName !== 'gamigin') {
+        fxDust(hauler.pos.x, hauler.pos.y, css);
+      }
+      // Spirale extracteurs
+      if (curr === 'extract') {
+        fxExtract(hauler.pos.x, hauler.pos.y, css);
+      }
+
+      this.prevTasks.set(hauler.id, curr);
+    }
+  }
+
   private _destroyOverlays(): void {
+    destroyParticles();
     ['goetia-hud','goetia-codex','goetia-radial','goetia-upgrades','goetia-pause','hud-best',
      'goetia-hud-style','goetia-codex-style','goetia-radial-style',
      'goetia-upgrades-style','goetia-pause-style'].forEach(id => document.getElementById(id)?.remove());
@@ -155,65 +210,8 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(0x88ccff, soul.stability01); g.fillCircle(soul.pos.x, soul.pos.y - 12, 4);
     }
 
-    const haulerColors: Record<string, number> = {
-      bifrons: 0x9966cc, bathin: 0x44aacc, seir: 0xffaa44,
-      murmur:  0xcc8844, gamigin: 0xaabb44,
-    };
-
     for (const hauler of this.world.haulers.values()) {
-      const base        = haulerColors[hauler.demonName] ?? 0x9966cc;
-      const isExtractor = hauler.demonName === 'murmur' || hauler.demonName === 'gamigin';
-      const isSeir      = hauler.demonName === 'seir';
-      const flashTicks  = seirFlashes.get(hauler.id) ?? 0;
-
-      if (isSeir) {
-        // Halo de téléportation : cercle blanc qui se dissipe
-        if (flashTicks > 0) {
-          const alpha = flashTicks / 3;
-          g.fillStyle(0xffffff, alpha * 0.45);
-          g.fillCircle(hauler.pos.x, hauler.pos.y, 28);
-          g.lineStyle(1.5, 0xffaa44, alpha);
-          g.strokeCircle(hauler.pos.x, hauler.pos.y, 28);
-        }
-        // Corps : triangle orange plus grand avec double contour
-        g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
-        g.fillTriangle(
-          hauler.pos.x, hauler.pos.y - 12,
-          hauler.pos.x - 10, hauler.pos.y + 10,
-          hauler.pos.x + 10, hauler.pos.y + 10,
-        );
-        g.lineStyle(1, base, 0.6);
-        g.strokeTriangle(
-          hauler.pos.x, hauler.pos.y - 12,
-          hauler.pos.x - 10, hauler.pos.y + 10,
-          hauler.pos.x + 10, hauler.pos.y + 10,
-        );
-      } else if (isExtractor) {
-        // Losange ◆
-        g.fillStyle(hauler.task.kind === 'extract' ? 0xffffff : base);
-        g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x + 8, hauler.pos.y, hauler.pos.x, hauler.pos.y + 10);
-        g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x - 8, hauler.pos.y, hauler.pos.x, hauler.pos.y + 10);
-        if (hauler.task.kind === 'extract') {
-          const c = this.world.corpses.get(hauler.task.corpseId);
-          if (c) { g.lineStyle(1, base, 0.35); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
-          const totalTicks = hauler.demonName === 'gamigin' ? 20 : 40;
-          const progress   = 1 - hauler.task.ticksLeft / totalTicks;
-          g.fillStyle(base, 0.7);    g.fillRect(hauler.pos.x - 12, hauler.pos.y + 13, 24 * progress, 3);
-          g.lineStyle(1, base, 0.3); g.strokeRect(hauler.pos.x - 12, hauler.pos.y + 13, 24, 3);
-        }
-      } else {
-        // Triangle ▲ porteur standard
-        g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
-        g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x - 8, hauler.pos.y + 8, hauler.pos.x + 8, hauler.pos.y + 8);
-        if (hauler.task.kind === 'pickup') {
-          const c = this.world.corpses.get(hauler.task.corpseId);
-          if (c) { g.lineStyle(1, base, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
-        }
-        if (hauler.task.kind === 'deliver') {
-          const pit = this.world.pits.get(hauler.task.targetPitId);
-          if (pit) { g.lineStyle(1, 0xffaa00, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, pit.pos.x, pit.pos.y); }
-        }
-      }
+      this._renderHauler(g, hauler);
     }
 
     for (const unit of this.world.units.values()) {
@@ -244,6 +242,72 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(col);      g.fillRect(enemy.pos.x - 14, enemy.pos.y - 22, 28 * hp, 4);
       if (enemy.type === 'knight' && enemy.armor > 0) {
         g.lineStyle(1, 0xffdd44, 0.6); g.strokeCircle(enemy.pos.x, enemy.pos.y, size + 3);
+      }
+    }
+  }
+
+  private _renderHauler(g: Phaser.GameObjects.Graphics, hauler: Hauler): void {
+    const base       = HAULER_COLORS[hauler.demonName] ?? 0x9966cc;
+    const isExtract  = hauler.demonName === 'murmur' || hauler.demonName === 'gamigin';
+    const isSeir     = hauler.demonName === 'seir';
+    const isBathin   = hauler.demonName === 'bathin';
+    const flashTicks = seirFlashes.get(hauler.id) ?? 0;
+
+    if (isSeir) {
+      if (flashTicks > 0) {
+        const a = flashTicks / 3;
+        g.fillStyle(0xffffff, a * 0.45);  g.fillCircle(hauler.pos.x, hauler.pos.y, 28);
+        g.lineStyle(1.5, 0xffaa44, a);    g.strokeCircle(hauler.pos.x, hauler.pos.y, 28);
+      }
+      g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
+      g.fillTriangle(hauler.pos.x, hauler.pos.y - 12, hauler.pos.x - 10, hauler.pos.y + 10, hauler.pos.x + 10, hauler.pos.y + 10);
+      g.lineStyle(1, base, 0.6);
+      g.strokeTriangle(hauler.pos.x, hauler.pos.y - 12, hauler.pos.x - 10, hauler.pos.y + 10, hauler.pos.x + 10, hauler.pos.y + 10);
+
+    } else if (isBathin) {
+      // Double triangle emboîté = double capacité visible
+      const carrying2 = !!hauler.carriedCorpse2Id;
+      g.fillStyle(carrying2 ? 0xffffff : base);
+      // Triangle principal
+      g.fillTriangle(hauler.pos.x, hauler.pos.y - 12, hauler.pos.x - 9, hauler.pos.y + 9, hauler.pos.x + 9, hauler.pos.y + 9);
+      // Triangle secondaire (décalé à droite)
+      g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base, carrying2 ? 1.0 : 0.45);
+      g.fillTriangle(hauler.pos.x + 6, hauler.pos.y - 8, hauler.pos.x - 3, hauler.pos.y + 9, hauler.pos.x + 14, hauler.pos.y + 9);
+      // Contour commun
+      g.lineStyle(1, base, 0.5);
+      g.strokeTriangle(hauler.pos.x, hauler.pos.y - 12, hauler.pos.x - 9, hauler.pos.y + 9, hauler.pos.x + 9, hauler.pos.y + 9);
+      // Indicateur du 2e slot
+      if (hauler.task.kind === 'deliver' && hauler.task.corpse2Id) {
+        const pit2 = this.world.pits.get(
+          [...this.world.pits.values()].find(p => p.state === 'loading')?.id ?? ''
+        );
+        if (pit2) { g.lineStyle(1, base, 0.2); g.lineBetween(hauler.pos.x, hauler.pos.y, pit2.pos.x, pit2.pos.y); }
+      }
+
+    } else if (isExtract) {
+      g.fillStyle(hauler.task.kind === 'extract' ? 0xffffff : base);
+      g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x + 8, hauler.pos.y, hauler.pos.x, hauler.pos.y + 10);
+      g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x - 8, hauler.pos.y, hauler.pos.x, hauler.pos.y + 10);
+      if (hauler.task.kind === 'extract') {
+        const c = this.world.corpses.get(hauler.task.corpseId);
+        if (c) { g.lineStyle(1, base, 0.35); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
+        const total   = hauler.demonName === 'gamigin' ? 20 : 40;
+        const progress = 1 - hauler.task.ticksLeft / total;
+        g.fillStyle(base, 0.7);    g.fillRect(hauler.pos.x - 12, hauler.pos.y + 13, 24 * progress, 3);
+        g.lineStyle(1, base, 0.3); g.strokeRect(hauler.pos.x - 12, hauler.pos.y + 13, 24, 3);
+      }
+
+    } else {
+      // Porteur standard (Bifrons, Leraje…)
+      g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
+      g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x - 8, hauler.pos.y + 8, hauler.pos.x + 8, hauler.pos.y + 8);
+      if (hauler.task.kind === 'pickup') {
+        const c = this.world.corpses.get(hauler.task.corpseId);
+        if (c) { g.lineStyle(1, base, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
+      }
+      if (hauler.task.kind === 'deliver') {
+        const pit = this.world.pits.get(hauler.task.targetPitId);
+        if (pit) { g.lineStyle(1, 0xffaa00, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, pit.pos.x, pit.pos.y); }
       }
     }
   }

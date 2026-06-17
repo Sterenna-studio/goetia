@@ -19,7 +19,6 @@ export interface Corpse {
   soulAttached: boolean;
   soulId?: EntityId;
   reservedBy?: EntityId;
-  /** ID du démon extracteur qui travaille sur ce cadavre */
   extractorId?: EntityId;
   tags: CorpseTag[];
   createdAtTick: Tick;
@@ -38,11 +37,12 @@ export interface Soul {
 
 export type HaulerTask =
   | { kind: 'idle' }
-  | { kind: 'pickup';  corpseId: EntityId }
-  | { kind: 'deliver'; corpseId: EntityId; targetPitId: EntityId }
-  | { kind: 'evade';   threatPos: Vec2 }
-  /** Extracteur : se déplace vers le cadavre et extrait l'âme */
-  | { kind: 'extract'; corpseId: EntityId; ticksLeft: number };
+  | { kind: 'pickup';   corpseId: EntityId }
+  /** Bathin après 1er pickup : cherche un 2e cadavre avant de livrer */
+  | { kind: 'pickup2';  corpseId: EntityId; corpse2Id: EntityId }
+  | { kind: 'deliver';  corpseId: EntityId; targetPitId: EntityId; corpse2Id?: EntityId }
+  | { kind: 'evade';    threatPos: Vec2 }
+  | { kind: 'extract';  corpseId: EntityId; ticksLeft: number };
 
 export interface Hauler {
   id: EntityId;
@@ -52,6 +52,8 @@ export interface Hauler {
   speed: number;
   carryCapacity: number;
   carriedCorpseId?: EntityId;
+  /** 2e cadavre porté (Bathin uniquement) */
+  carriedCorpse2Id?: EntityId;
   task: HaulerTask;
   createdAtTick: Tick;
 }

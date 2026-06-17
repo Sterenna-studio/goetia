@@ -5,6 +5,7 @@
 import type { WorldState, SimContext, GameSystem, GameCommand } from './types';
 import { NecromancySystem } from './systems/NecromancySystem';
 import { HaulingSystem }    from './systems/HaulingSystem';
+import { BathinSystem }     from './systems/BathinSystem';
 import { ExtractionSystem } from './systems/ExtractionSystem';
 import { SeirSystem }       from './systems/SeirSystem';
 import { SpawnSystem }      from './systems/SpawnSystem';
@@ -38,7 +39,8 @@ export class Simulation {
       new NecromancySystem(),
       new ExtractionSystem(),
       new HaulingSystem(),
-      new SeirSystem(),      // après HaulingSystem pour ne pas double-assigner
+      new BathinSystem(),
+      new SeirSystem(),
       new SpawnSystem(),
       this.combatSystem,
       this.waveSystem,
