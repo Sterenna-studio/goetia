@@ -1,19 +1,23 @@
 // ============================================================
-// GOETIA — Simulation
+// GOETIA — Simulation v3
+// ScoringSystem branché via EventBus + popup flottants.
 // ============================================================
 
 import type { WorldState, SimContext, GameSystem, GameCommand } from './types';
-import { NecromancySystem } from './systems/NecromancySystem';
-import { HaulingSystem }    from './systems/HaulingSystem';
-import { BathinSystem }     from './systems/BathinSystem';
-import { ExtractionSystem } from './systems/ExtractionSystem';
-import { SeirSystem }       from './systems/SeirSystem';
-import { SpawnSystem }      from './systems/SpawnSystem';
-import { CombatSystem }     from './systems/CombatSystem';
-import { WaveSystem }       from './systems/WaveSystem';
-import { BlessSystem }      from './systems/BlessSystem';
-import { UpgradeSystem }    from './upgrades';
-import { spawnHauler }      from './world';
+import { NecromancySystem }  from './systems/NecromancySystem';
+import { HaulingSystem }     from './systems/HaulingSystem';
+import { BathinSystem }      from './systems/BathinSystem';
+import { ExtractionSystem }  from './systems/ExtractionSystem';
+import { SeirSystem }        from './systems/SeirSystem';
+import { SpawnSystem }       from './systems/SpawnSystem';
+import { CombatSystem }      from './systems/CombatSystem';
+import { WaveSystem }        from './systems/WaveSystem';
+import { BlessSystem }       from './systems/BlessSystem';
+import { UpgradeSystem }     from './upgrades';
+import { ScoringSystem }     from './scoring';
+import { EventBus }          from './events';
+import { spawnHauler }       from './world';
+import { spawnScorePopup }   from '../ui/scorepopup';
 
 const FIXED_STEP_MS  = 100;
 const SCORE_PER_KILL = 5;
@@ -24,16 +28,26 @@ export class Simulation {
   private _tick = 0;
   private pendingCommands: GameCommand[] = [];
 
-  public waveSystem:   WaveSystem;
-  public combatSystem: CombatSystem;
-  public upgrades:     UpgradeSystem;
+  public waveSystem:    WaveSystem;
+  public combatSystem:  CombatSystem;
+  public upgrades:      UpgradeSystem;
+  public scoring:       ScoringSystem;
   public gameOver = false;
-  public score = 0;
+  public score    = 0;
 
   constructor() {
     this.waveSystem   = new WaveSystem();
     this.combatSystem = new CombatSystem();
     this.upgrades     = new UpgradeSystem();
+    this.scoring      = new ScoringSystem();
+
+    this.scoring.install();
+    this.scoring.onScore(ev => {
+      this.score += ev.total;
+      // Popup visuel — pos inconnue ici, on passe null (popup au centre-haut)
+      spawnScorePopup(ev.label, ev.total, null);
+    });
+
     this.systems = [
       new BlessSystem(),
       new NecromancySystem(),
@@ -63,8 +77,14 @@ export class Simulation {
       }
       this.pendingCommands = [];
       for (const system of this.systems) system.update(ctx, world);
+
+      // Score tirs
       const kills = this.combatSystem.killCount;
       if (kills > 0) { this.score += kills * SCORE_PER_KILL; this.combatSystem.killCount = 0; }
+
+      // Décay combo si inactif
+      this.scoring.tickComboDecay(this._tick);
+
       this._checkGameOver(world);
     }
   }
@@ -82,7 +102,14 @@ export class Simulation {
   reset(): void {
     this.accumulator = 0; this._tick = 0;
     this.pendingCommands = []; this.gameOver = false; this.score = 0;
-    this.waveSystem.reset(); this.combatSystem.reset(); this.upgrades.reset();
+    this.waveSystem.reset(); this.combatSystem.reset();
+    this.upgrades.reset();   this.scoring.reset();
+    EventBus.clear();
+    this.scoring.install();
+    this.scoring.onScore(ev => {
+      this.score += ev.total;
+      spawnScorePopup(ev.label, ev.total, null);
+    });
   }
 
   get tick(): number { return this._tick; }

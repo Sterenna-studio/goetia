@@ -1,10 +1,11 @@
 // ============================================================
-// GOETIA — HaulingSystem (Bifrons uniquement)
-// Bathin et Seir ont leurs propres systèmes.
+// GOETIA — HaulingSystem v2 (Bifrons)
+// Émet CORPSE_DELIVERED sur l'EventBus à chaque livraison.
 // ============================================================
 
 import type { GameSystem, SimContext, WorldState, Hauler } from '../types';
 import { getAvailableCorpses, getEmptyPits, moveToward, dist } from '../world';
+import { EventBus } from '../events';
 
 const PICKUP_RANGE  = 8;
 const DELIVER_RANGE = 8;
@@ -16,7 +17,7 @@ export class HaulingSystem implements GameSystem {
   update(_ctx: SimContext, world: WorldState): void {
     for (const hauler of world.haulers.values()) {
       if (hauler.hp <= 0) continue;
-      if (!STANDARD_HAULERS.has(hauler.demonName)) continue; // Bathin + Seir exclus
+      if (!STANDARD_HAULERS.has(hauler.demonName)) continue;
       this._tick(hauler, world);
     }
   }
@@ -68,6 +69,18 @@ export class HaulingSystem implements GameSystem {
     corpse.pos = { ...hauler.pos };
 
     if (dist(hauler.pos, pit.pos) < DELIVER_RANGE) {
+      // ─ Évenir AVANT de modifier l'état (freshness encore valide)
+      EventBus.emit({
+        type:        'CORPSE_DELIVERED',
+        corpseId:    corpse.id,
+        pitId:       pit.id,
+        freshness:   corpse.freshness01,
+        soulQuality: corpse.soulId ? (world.souls.get(corpse.soulId)?.quality ?? null) : null,
+        corpseType:  corpse.tags.includes('large')  ? 'large'   :
+                     corpse.tags.includes('priest') ? 'priest'  :
+                     corpse.tags.includes('soldier')? 'soldier' : 'human',
+      });
+
       pit.state            = 'processing';
       pit.corpseId         = corpse.id;
       pit.soulId           = corpse.soulId;
