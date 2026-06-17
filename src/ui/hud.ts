@@ -3,6 +3,7 @@
 // ============================================================
 
 import type { WorldState } from '../core/types';
+import type { DemonOption } from './radial';
 
 const HUD_ID = 'goetia-hud';
 function el(id: string): HTMLElement { return document.getElementById(id)!; }
@@ -19,7 +20,11 @@ export function initHUD(): void {
       <span id="hud-wave">Vague: —</span>
       <span id="hud-score">Score: 0</span>
       <button id="hud-codex-btn">[C] Codex</button>
-      <span id="hud-restart">[R] Restart &nbsp; [Clic] Bifrons</span>
+      <span id="hud-restart">[R] Restart</span>
+    </div>
+    <div id="hud-active-demon">
+      <span id="hud-demon-label">Bifrons</span>
+      <span id="hud-demon-hint">[Clic gauche] Invoquer &nbsp; [Clic droit] Changer</span>
     </div>
     <div id="hud-resources">
       <div class="res-block">
@@ -47,7 +52,7 @@ export function initHUD(): void {
     <div id="hud-legend">
       <span style="color:#886644">●</span> Cadavre &nbsp;
       <span style="color:#88ccff">●</span> Âme &nbsp;
-      <span style="color:#9966cc">▲</span> Bifrons &nbsp;
+      <span style="color:#9966cc">▲</span> Porteur &nbsp;
       <span style="color:#44cc88">■</span> Leraje &nbsp;
       <span style="color:#cc4444">●</span> Ennemi &nbsp;
       <span style="color:#ffaa00">□</span> Fosse
@@ -78,16 +83,27 @@ export function initHUD(): void {
     #hud-wave { color: #88ccff; }
     #hud-score { color: #ffdd44; }
     #hud-codex-btn {
-      background: none;
-      border: 1px solid #554;
-      color: #aa9966;
-      cursor: pointer;
-      padding: 2px 10px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 12px;
+      background: none; border: 1px solid #554;
+      color: #aa9966; cursor: pointer;
+      padding: 2px 10px; border-radius: 4px;
+      font-family: monospace; font-size: 12px;
     }
     #hud-codex-btn:hover { border-color: #cc4444; color: #ffdd44; }
+    #hud-active-demon {
+      position: absolute; top: 52px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 14px; align-items: center;
+      background: rgba(0,0,0,0.5);
+      padding: 4px 16px; border-radius: 5px;
+      font-size: 12px;
+      border: 1px solid var(--active-color, #9966cc);
+    }
+    #hud-demon-label {
+      color: var(--active-color, #9966cc);
+      font-weight: bold;
+      font-size: 14px;
+    }
+    #hud-demon-hint { color: #555; font-size: 11px; }
     #hud-resources {
       position: absolute; bottom: 18px; left: 50%;
       transform: translateX(-50%);
@@ -123,6 +139,13 @@ export function initHUD(): void {
 export function initHUDCodexButton(onToggle: () => void): void {
   const btn = document.getElementById('hud-codex-btn');
   if (btn) btn.addEventListener('click', onToggle);
+}
+
+export function updateActiveDemon(demon: DemonOption): void {
+  const label = document.getElementById('hud-demon-label');
+  const bar = document.getElementById('hud-active-demon');
+  if (label) label.textContent = demon.label;
+  if (bar) bar.style.setProperty('--active-color', demon.color);
 }
 
 export function updateHUD(world: WorldState, wave = 0, score = 0, gameOver = false): void {

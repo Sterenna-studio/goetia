@@ -1,13 +1,16 @@
 // ============================================================
 // GOETIA — GameScene
+// Clic gauche = spawn démon actif. Clic droit = menu radial.
+// [1][2][3] = sélection rapide démon. [C] = Codex. [R] = Restart.
 // ============================================================
 
 import Phaser from 'phaser';
 import { createWorld, spawnCorpse, spawnHauler, spawnPit, spawnEnemy } from '../core/world';
 import { Simulation } from '../core/sim';
-import type { WorldState } from '../core/types';
-import { initHUD, initHUDCodexButton, updateHUD } from '../ui/hud';
+import type { WorldState, DemonName } from '../core/types';
+import { initHUD, initHUDCodexButton, updateHUD, updateActiveDemon } from '../ui/hud';
 import { initCodex, toggleCodex, isCodexVisible } from '../ui/codex';
+import { initRadial, showRadial, hideRadial, isRadialVisible, getSelectedDemon, selectDemonByKey } from '../ui/radial';
 
 export class GameScene extends Phaser.Scene {
   private world!: WorldState;
@@ -25,7 +28,11 @@ export class GameScene extends Phaser.Scene {
 
     initHUD();
     initCodex();
+    initRadial((id) => {
+      updateActiveDemon(getSelectedDemon());
+    });
     initHUDCodexButton(() => toggleCodex());
+    updateActiveDemon(getSelectedDemon());
 
     spawnPit(this.world, { x: 580, y: 300 });
     spawnPit(this.world, { x: 580, y: 440 });
@@ -35,13 +42,30 @@ export class GameScene extends Phaser.Scene {
     spawnEnemy(this.world, { x: 1150, y: 280 });
     spawnEnemy(this.world, { x: 1220, y: 430 });
 
+    // Clic gauche — spawn démon actif
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
       if (this.sim.gameOver || isCodexVisible()) return;
-      spawnHauler(this.world, { x: ptr.x, y: ptr.y }, 'bifrons');
+      if (ptr.rightButtonDown()) {
+        showRadial(ptr.x, ptr.y);
+        return;
+      }
+      if (isRadialVisible()) { hideRadial(); return; }
+      const demon = getSelectedDemon();
+      spawnHauler(this.world, { x: ptr.x, y: ptr.y }, demon.id as DemonName);
     });
 
+    // Disable context menu
+    this.game.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Touches
     this.input.keyboard?.addKey('R').on('down', () => this.scene.restart());
     this.input.keyboard?.addKey('C').on('down', () => toggleCodex());
+    ['ONE', 'TWO', 'THREE'].forEach((k, i) => {
+      this.input.keyboard?.addKey(k).on('down', () => {
+        selectDemonByKey(String(i + 1));
+        updateActiveDemon(getSelectedDemon());
+      });
+    });
   }
 
   update(_time: number, delta: number): void {
@@ -100,8 +124,15 @@ export class GameScene extends Phaser.Scene {
       g.fillCircle(soul.pos.x, soul.pos.y - 12, 4);
     }
 
+    // Porteurs colorés selon leur type
+    const haulerColors: Record<string, number> = {
+      bifrons: 0x9966cc,
+      bathin: 0x44aacc,
+      seir: 0xffaa44,
+    };
     for (const hauler of this.world.haulers.values()) {
-      g.fillStyle(hauler.carriedCorpseId ? 0xcc88ff : 0x9966cc);
+      const base = haulerColors[hauler.demonName] ?? 0x9966cc;
+      g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
       g.fillTriangle(
         hauler.pos.x, hauler.pos.y - 10,
         hauler.pos.x - 8, hauler.pos.y + 8,
@@ -109,7 +140,7 @@ export class GameScene extends Phaser.Scene {
       );
       if (hauler.task.kind === 'pickup') {
         const c = this.world.corpses.get(hauler.task.corpseId);
-        if (c) { g.lineStyle(1, 0x9966cc, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
+        if (c) { g.lineStyle(1, base, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
       }
       if (hauler.task.kind === 'deliver') {
         const pit = this.world.pits.get(hauler.task.targetPitId);
