@@ -36,11 +36,10 @@ export class GameScene extends Phaser.Scene {
       (id) => this.sim.buyUpgrade(id, this.world),
     );
     initPause(
-      () => { /* resume callback */ },
+      () => { /* resume */ },
       () => this.scene.restart(),
       () => { hidePause(); this._destroyOverlays(); this.scene.start('TitleScene'); },
     );
-    // Passe le callback pause au bouton HUD
     initHUDButtons(
       () => toggleCodex(),
       () => toggleUpgradePanel(),
@@ -76,16 +75,10 @@ export class GameScene extends Phaser.Scene {
       if (this.sim.gameOver || isCodexVisible() || isUpgradePanelVisible()) return;
       togglePause();
     });
-    this.input.keyboard?.addKey('R').on('down', () => {
-      if (!isPaused()) this.scene.restart();
-    });
-    this.input.keyboard?.addKey('C').on('down', () => {
-      if (!isPaused()) toggleCodex();
-    });
-    this.input.keyboard?.addKey('U').on('down', () => {
-      if (!isPaused()) toggleUpgradePanel();
-    });
-    ['ONE', 'TWO', 'THREE'].forEach((k, i) => {
+    this.input.keyboard?.addKey('R').on('down', () => { if (!isPaused()) this.scene.restart(); });
+    this.input.keyboard?.addKey('C').on('down', () => { if (!isPaused()) toggleCodex(); });
+    this.input.keyboard?.addKey('U').on('down', () => { if (!isPaused()) toggleUpgradePanel(); });
+    ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'].forEach((k, i) => {
       this.input.keyboard?.addKey(k).on('down', () => {
         if (isPaused()) return;
         selectDemonByKey(String(i + 1));
@@ -96,8 +89,6 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (!isPaused()) this.sim.update(this.world, delta);
-
-    // Synchronise l'aspect du bouton ❙❙ / ▶ à chaque frame
     updatePauseButton(isPaused());
 
     if (this.sim.gameOver && !this.gameOverShown) {
@@ -111,50 +102,30 @@ export class GameScene extends Phaser.Scene {
   }
 
   private _destroyOverlays(): void {
-    ['goetia-hud', 'goetia-codex', 'goetia-radial', 'goetia-upgrades', 'goetia-pause', 'hud-best',
-     'goetia-hud-style', 'goetia-codex-style', 'goetia-radial-style',
-     'goetia-upgrades-style', 'goetia-pause-style'].forEach(id => document.getElementById(id)?.remove());
+    ['goetia-hud','goetia-codex','goetia-radial','goetia-upgrades','goetia-pause','hud-best',
+     'goetia-hud-style','goetia-codex-style','goetia-radial-style',
+     'goetia-upgrades-style','goetia-pause-style'].forEach(id => document.getElementById(id)?.remove());
   }
 
   private _showGameOver(bestScore: number, bestWave: number): void {
     const score = this.sim.score;
     const wave  = this.sim.waveSystem.currentWave;
     const isNewBest = score >= bestScore && wave > 0;
-
     this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.75).setDepth(10);
-    this.add.text(640, 210, 'GAME OVER', {
-      fontSize: '64px', color: '#cc4444', fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(11);
-    if (isNewBest) {
-      this.add.text(640, 280, '✨ NOUVEAU RECORD ✨', {
-        fontSize: '20px', color: '#ffdd44', fontFamily: 'monospace',
-      }).setOrigin(0.5).setDepth(11);
-    }
-    this.add.text(640, 330, `Score : ${score}`, {
-      fontSize: '32px', color: '#ffffff', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 375, `Vague atteinte : ${wave}`, {
-      fontSize: '20px', color: '#88ccff', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 410, `Upgrades achetées : ${this.sim.upgrades.getPurchased().length}`, {
-      fontSize: '16px', color: '#aa9966', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 450, '―――――――――――――――――', {
-      fontSize: '14px', color: '#333', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 475, `Meilleur score : ${bestScore}  |  Meilleure vague : ${bestWave}`, {
-      fontSize: '15px', color: '#ffaa44', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 530, '[R] Recommencer', {
-      fontSize: '22px', color: '#ffaa44', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 210, 'GAME OVER', { fontSize:'64px', color:'#cc4444', fontFamily:'monospace', fontStyle:'bold' }).setOrigin(0.5).setDepth(11);
+    if (isNewBest) this.add.text(640, 280, '✨ NOUVEAU RECORD ✨', { fontSize:'20px', color:'#ffdd44', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 330, `Score : ${score}`,                 { fontSize:'32px', color:'#ffffff',  fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 375, `Vague atteinte : ${wave}`,         { fontSize:'20px', color:'#88ccff',  fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 410, `Upgrades achetées : ${this.sim.upgrades.getPurchased().length}`, { fontSize:'16px', color:'#aa9966', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 450, '―――――――――――――――――', { fontSize:'14px', color:'#333', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 475, `Meilleur score : ${bestScore}  |  Meilleure vague : ${bestWave}`, { fontSize:'15px', color:'#ffaa44', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
+    this.add.text(640, 530, '[R] Recommencer', { fontSize:'22px', color:'#ffaa44', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
   }
 
   private _render(): void {
     const g = this.gfx;
     g.clear();
-    g.lineStyle(1, 0x440000, 0.4);
-    g.lineBetween(4, 0, 4, 720);
+    g.lineStyle(1, 0x440000, 0.4); g.lineBetween(4, 0, 4, 720);
 
     for (const zone of this.world.blessedZones) {
       g.lineStyle(1, 0xffffff, 0.12); g.strokeCircle(zone.pos.x, zone.pos.y, zone.radius);
@@ -172,6 +143,11 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(corpse.blessed ? 0xffffff : 0x886644, corpse.freshness01);
       g.fillCircle(corpse.pos.x, corpse.pos.y, corpse.blessed ? 6 : 8);
       if (corpse.soulAttached) { g.lineStyle(1, 0x88ccff, 0.6); g.strokeCircle(corpse.pos.x, corpse.pos.y, 14); }
+      // Anneau orange = extraction en cours
+      if (corpse.extractorId) {
+        g.lineStyle(1, 0xcc8844, 0.55);
+        g.strokeCircle(corpse.pos.x, corpse.pos.y, 18);
+      }
       if (corpse.blessed) {
         g.lineStyle(1, 0xffffff, 0.5);
         g.lineBetween(corpse.pos.x - 5, corpse.pos.y, corpse.pos.x + 5, corpse.pos.y);
@@ -181,25 +157,46 @@ export class GameScene extends Phaser.Scene {
     for (const soul of this.world.souls.values()) {
       g.fillStyle(0x88ccff, soul.stability01); g.fillCircle(soul.pos.x, soul.pos.y - 12, 4);
     }
-    const haulerColors: Record<string, number> = { bifrons: 0x9966cc, bathin: 0x44aacc, seir: 0xffaa44 };
+    const haulerColors: Record<string, number> = {
+      bifrons: 0x9966cc, bathin: 0x44aacc, seir: 0xffaa44,
+      murmur: 0xcc8844, gamigin: 0xaabb44,
+    };
     for (const hauler of this.world.haulers.values()) {
       const base = haulerColors[hauler.demonName] ?? 0x9966cc;
-      g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
-      g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x - 8, hauler.pos.y + 8, hauler.pos.x + 8, hauler.pos.y + 8);
-      if (hauler.task.kind === 'pickup') {
-        const c = this.world.corpses.get(hauler.task.corpseId);
-        if (c) { g.lineStyle(1, base, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
-      }
-      if (hauler.task.kind === 'deliver') {
-        const pit = this.world.pits.get(hauler.task.targetPitId);
-        if (pit) { g.lineStyle(1, 0xffaa00, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, pit.pos.x, pit.pos.y); }
+      const isExtractor = hauler.demonName === 'murmur' || hauler.demonName === 'gamigin';
+
+      if (isExtractor) {
+        // Losange ◆
+        g.fillStyle(hauler.task.kind === 'extract' ? 0xffffff : base);
+        g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x + 8, hauler.pos.y, hauler.pos.x, hauler.pos.y + 10);
+        g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x - 8, hauler.pos.y, hauler.pos.x, hauler.pos.y + 10);
+        if (hauler.task.kind === 'extract') {
+          const c = this.world.corpses.get(hauler.task.corpseId);
+          if (c) { g.lineStyle(1, base, 0.35); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
+          const totalTicks = hauler.demonName === 'gamigin' ? 20 : 40;
+          const progress = 1 - hauler.task.ticksLeft / totalTicks;
+          g.fillStyle(base, 0.7);   g.fillRect(hauler.pos.x - 12, hauler.pos.y + 13, 24 * progress, 3);
+          g.lineStyle(1, base, 0.3); g.strokeRect(hauler.pos.x - 12, hauler.pos.y + 13, 24, 3);
+        }
+      } else {
+        // Triangle ▲ porteur
+        g.fillStyle(hauler.carriedCorpseId ? 0xffffff : base);
+        g.fillTriangle(hauler.pos.x, hauler.pos.y - 10, hauler.pos.x - 8, hauler.pos.y + 8, hauler.pos.x + 8, hauler.pos.y + 8);
+        if (hauler.task.kind === 'pickup') {
+          const c = this.world.corpses.get(hauler.task.corpseId);
+          if (c) { g.lineStyle(1, base, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
+        }
+        if (hauler.task.kind === 'deliver') {
+          const pit = this.world.pits.get(hauler.task.targetPitId);
+          if (pit) { g.lineStyle(1, 0xffaa00, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, pit.pos.x, pit.pos.y); }
+        }
       }
     }
     for (const unit of this.world.units.values()) {
       g.fillStyle(0x44cc88); g.fillRect(unit.pos.x - 6, unit.pos.y - 6, 12, 12);
       if (unit.targetId) {
-        const target = this.world.enemies.get(unit.targetId);
-        if (target) { g.lineStyle(1, 0x44cc88, 0.25); g.lineBetween(unit.pos.x, unit.pos.y, target.pos.x, target.pos.y); }
+        const t = this.world.enemies.get(unit.targetId);
+        if (t) { g.lineStyle(1, 0x44cc88, 0.25); g.lineBetween(unit.pos.x, unit.pos.y, t.pos.x, t.pos.y); }
       }
     }
     const enemyColors: Record<string, number> = { soldier: 0xcc4444, priest: 0xffffff, knight: 0x886622 };
@@ -217,9 +214,9 @@ export class GameScene extends Phaser.Scene {
       } else {
         g.fillStyle(col); g.fillCircle(enemy.pos.x, enemy.pos.y, size);
       }
-      const hpRatio = enemy.hp / enemy.maxHp;
+      const hp = enemy.hp / enemy.maxHp;
       g.fillStyle(0x333333); g.fillRect(enemy.pos.x - 14, enemy.pos.y - 22, 28, 4);
-      g.fillStyle(col);      g.fillRect(enemy.pos.x - 14, enemy.pos.y - 22, 28 * hpRatio, 4);
+      g.fillStyle(col);      g.fillRect(enemy.pos.x - 14, enemy.pos.y - 22, 28 * hp, 4);
       if (enemy.type === 'knight' && enemy.armor > 0) {
         g.lineStyle(1, 0xffdd44, 0.6); g.strokeCircle(enemy.pos.x, enemy.pos.y, size + 3);
       }
@@ -233,10 +230,10 @@ function updateBestHUD(score: number, wave: number): void {
     el = document.createElement('div');
     el.id = 'hud-best';
     el.style.cssText = `
-      position: fixed; top: 10px; left: 14px;
-      font-family: monospace; font-size: 11px; color: #554433;
-      background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 4px;
-      pointer-events: none; z-index: 101;
+      position:fixed; top:10px; left:14px;
+      font-family:monospace; font-size:11px; color:#554433;
+      background:rgba(0,0,0,0.5); padding:4px 10px; border-radius:4px;
+      pointer-events:none; z-index:101;
     `;
     document.body.appendChild(el);
   }

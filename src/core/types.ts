@@ -19,6 +19,8 @@ export interface Corpse {
   soulAttached: boolean;
   soulId?: EntityId;
   reservedBy?: EntityId;
+  /** ID du démon extracteur qui travaille sur ce cadavre */
+  extractorId?: EntityId;
   tags: CorpseTag[];
   createdAtTick: Tick;
   blessed?: boolean;
@@ -36,9 +38,11 @@ export interface Soul {
 
 export type HaulerTask =
   | { kind: 'idle' }
-  | { kind: 'pickup'; corpseId: EntityId }
+  | { kind: 'pickup';  corpseId: EntityId }
   | { kind: 'deliver'; corpseId: EntityId; targetPitId: EntityId }
-  | { kind: 'evade'; threatPos: Vec2 };
+  | { kind: 'evade';   threatPos: Vec2 }
+  /** Extracteur : se déplace vers le cadavre et extrait l'âme */
+  | { kind: 'extract'; corpseId: EntityId; ticksLeft: number };
 
 export interface Hauler {
   id: EntityId;
@@ -95,10 +99,10 @@ export interface Enemy {
 export interface WorldState {
   tick: Tick;
   corpses: Map<EntityId, Corpse>;
-  souls: Map<EntityId, Soul>;
+  souls:   Map<EntityId, Soul>;
   haulers: Map<EntityId, Hauler>;
-  pits: Map<EntityId, Pit>;
-  units: Map<EntityId, Unit>;
+  pits:    Map<EntityId, Pit>;
+  units:   Map<EntityId, Unit>;
   enemies: Map<EntityId, Enemy>;
   resources: { soulsAvailable: number; corpsesAvailable: number; };
   blessedZones: Array<{ pos: Vec2; radius: number; sourceId: EntityId }>;

@@ -4,13 +4,14 @@
 
 import type { WorldState, SimContext, GameSystem, GameCommand } from './types';
 import { NecromancySystem } from './systems/NecromancySystem';
-import { HaulingSystem } from './systems/HaulingSystem';
-import { SpawnSystem } from './systems/SpawnSystem';
-import { CombatSystem } from './systems/CombatSystem';
-import { WaveSystem } from './systems/WaveSystem';
-import { BlessSystem } from './systems/BlessSystem';
-import { UpgradeSystem } from './upgrades';
-import { spawnHauler } from './world';
+import { HaulingSystem }    from './systems/HaulingSystem';
+import { ExtractionSystem } from './systems/ExtractionSystem';
+import { SpawnSystem }      from './systems/SpawnSystem';
+import { CombatSystem }     from './systems/CombatSystem';
+import { WaveSystem }       from './systems/WaveSystem';
+import { BlessSystem }      from './systems/BlessSystem';
+import { UpgradeSystem }    from './upgrades';
+import { spawnHauler }      from './world';
 
 const FIXED_STEP_MS = 100;
 const SCORE_PER_KILL = 5;
@@ -21,19 +22,20 @@ export class Simulation {
   private _tick = 0;
   private pendingCommands: GameCommand[] = [];
 
-  public waveSystem: WaveSystem;
+  public waveSystem:   WaveSystem;
   public combatSystem: CombatSystem;
-  public upgrades: UpgradeSystem;
+  public upgrades:     UpgradeSystem;
   public gameOver = false;
   public score = 0;
 
   constructor() {
-    this.waveSystem = new WaveSystem();
+    this.waveSystem   = new WaveSystem();
     this.combatSystem = new CombatSystem();
-    this.upgrades = new UpgradeSystem();
+    this.upgrades     = new UpgradeSystem();
     this.systems = [
       new BlessSystem(),
       new NecromancySystem(),
+      new ExtractionSystem(),
       new HaulingSystem(),
       new SpawnSystem(),
       this.combatSystem,
@@ -57,12 +59,8 @@ export class Simulation {
       }
       this.pendingCommands = [];
       for (const system of this.systems) system.update(ctx, world);
-
       const kills = this.combatSystem.killCount;
-      if (kills > 0) {
-        this.score += kills * SCORE_PER_KILL;
-        this.combatSystem.killCount = 0;
-      }
+      if (kills > 0) { this.score += kills * SCORE_PER_KILL; this.combatSystem.killCount = 0; }
       this._checkGameOver(world);
     }
   }
