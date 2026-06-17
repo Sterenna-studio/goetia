@@ -1,0 +1,17 @@
+{
+  "id": "murmur",
+  "label": "Murmur",
+  "rank": "Duc & Comte",
+  "legions": 30,
+  "role": "soul_extractor",
+  "lore": "Murmur appara\u00eet couronn\u00e9, mont\u00e9 sur un vautour, accompagn\u00e9 de ses ministres qui jouent de la trompette. Il contraint les \u00e2mes des morts \u00e0 se pr\u00e9senter et \u00e0 r\u00e9pondre aux questions du n\u00e9cromancien.",
+  "lore_short": "Convoque les \u00e2mes des morts. Les force \u00e0 ob\u00e9ir.",
+  "sigil": "murmur_sigil",
+  "stats": {
+    "extractionRadius": 150,
+    "extractionSpeedTicks": 20,
+    "hp": 20
+  },
+  "color": "#cc8844",
+  "shape": "circle"
+}

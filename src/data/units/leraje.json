@@ -1,24 +1,20 @@
 {
   "id": "leraje",
-  "demonName": "Leraje",
+  "label": "Ler\u00e0j\u00e9",
   "rank": "Marquis",
   "legions": 30,
-  "tier": 1,
-  "label": "Leraje l'Archer",
-  "description": "Marquis de l'Enfer commandant 30 légions. Cause batailles et disputes ; ses flèches gangrènent les blessures.",
-  "sourceBodyTags": ["human", "soldier"],
-  "sourceSoulQualities": ["common", "potent"],
-  "cost": {
-    "corpses": 1,
-    "souls": 1,
-    "ticksToProduce": 30
-  },
+  "role": "combat",
+  "lore": "Ler\u00e0j\u00e9 porte un arc et des fl\u00e8ches. Il provoque les batailles et fait pourrir les blessures caus\u00e9es par les fl\u00e8ches. Ses archers ne manquent jamais leur cible.",
+  "lore_short": "Archer infaillible. Ses blessures s'infectent et ne gu\u00e9rissent jamais.",
+  "sigil": "leraje_sigil",
   "stats": {
-    "hp": 20,
-    "speed": 1.2,
+    "hp": 40,
+    "speed": 2.0,
     "damage": 8,
-    "range": 80,
-    "aggro": 60
+    "range": 120,
+    "aggro": 200
   },
-  "behavior": "ranged"
+  "sourceTags": ["human", "soldier"],
+  "color": "#44cc88",
+  "shape": "square"
 }

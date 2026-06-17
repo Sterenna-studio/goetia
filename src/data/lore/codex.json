@@ -1,0 +1,16 @@
+{
+  "title": "Codex Goetia",
+  "intro": "La Goetia est la premi\u00e8re partie du Lemegeton Clavicula Salomonis, le Petit Cl\u00e9 de Salomon. Elle d\u00e9crit 72 esprits que Salomon aurait convoqu\u00e9s et emprisonn\u00e9s dans un vase de cuivre. Ces d\u00e9mons, chacun commandant des l\u00e9gions de diables, ob\u00e9issent au n\u00e9cromancien qui conna\u00eet leurs noms et leurs sceaux.",
+  "world": "Vous \u00eates le N\u00e9cromancien. Pas un soldat, pas un roi. Un op\u00e9rateur de mort. Les armures rouill\u00e9es qui jonchent la plaine sont votre mati\u00e8re premi\u00e8re. Les d\u00e9mons que vous invoquez ne se battent pas pour vous — ils travaillent pour vous. Bifrons transporte. Murmur extrait. La fosse consume. Ler\u00e0j\u00e9 tue. Et les corps refont le cycle.",
+  "mechanics": {
+    "corpse": "Un corps fra\u00eeche est une ressource primaire. Il se corrompt avec le temps. Bifrons peut le r\u00e9cup\u00e9rer avant qu'il ne soit perdu.",
+    "soul": "Murmur extrait l'\u00e2me avant que le corps ne se vide. La qualit\u00e9 de l'\u00e2me d\u00e9termine le type d'unit\u00e9 produite.",
+    "pit": "La fosse consume un corps et une \u00e2me pour en faire une entit\u00e9 li\u00e9e. Le rituel prend du temps. Prot\u00e9gez la fosse.",
+    "unit": "Les unit\u00e9s produites ne vous appartiennent pas — elles ob\u00e9issent au d\u00e9mon qui leur a donn\u00e9 forme. Elles combattent jusqu'\u00e0 la destruction."
+  },
+  "enemies": {
+    "soldier": "Les soldats de chair marchent vers vous sans peur. Ils ne savent pas ce qu'ils affrontent. Leurs corps tombent. Vos porteurs les r\u00e9cup\u00e8rent.",
+    "priest": "Les pr\u00eatres b\u00e9nissent le sol autour d'eux. Les corps sur sol b\u00e9ni ne peuvent pas \u00eatre r\u00e9cup\u00e9r\u00e9s. \u00c9liminez-les en priorit\u00e9.",
+    "knight": "Les chevaliers portent une armure. Ler\u00e0j\u00e9 seul peut percer leur carapace. Leur corps pese deux fois plus."
+  }
+}

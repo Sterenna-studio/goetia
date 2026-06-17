@@ -1,0 +1,18 @@
+{
+  "id": "bathin",
+  "label": "Bathin",
+  "rank": "Duc",
+  "legions": 30,
+  "role": "hauler",
+  "lore": "Bathin appara\u00eet comme un homme fort avec la queue d'un serpent. Il conna\u00eet les vertus des herbes et des pierres pr\u00e9cieuses. Il peut transporter les hommes soudainement d'un pays \u00e0 un autre.",
+  "lore_short": "Transport instantan\u00e9. T\u00e9l\u00e9porte les corps sur de grandes distances.",
+  "sigil": "bathin_sigil",
+  "stats": {
+    "speed": 2.5,
+    "carryCapacity": 2,
+    "hp": 25,
+    "teleportRange": 300
+  },
+  "color": "#44aacc",
+  "shape": "triangle"
+}

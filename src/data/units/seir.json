@@ -1,0 +1,17 @@
+{
+  "id": "seir",
+  "label": "Seir",
+  "rank": "Prince",
+  "legions": 26,
+  "role": "hauler",
+  "lore": "Seir est un prince puissant. Il appara\u00eet sous la forme d'un bel homme mont\u00e9 sur un cheval ail\u00e9. Il peut aller \u00e0 toute vitesse vers n'importe quel point du monde pour accomplir la volont\u00e9 du magicien.",
+  "lore_short": "Le plus rapide des porteurs. Course \u00e0 travers le champ de bataille.",
+  "sigil": "seir_sigil",
+  "stats": {
+    "speed": 4.0,
+    "carryCapacity": 1,
+    "hp": 20
+  },
+  "color": "#ffaa44",
+  "shape": "triangle"
+}

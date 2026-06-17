@@ -1,0 +1,18 @@
+{
+  "id": "gamigin",
+  "label": "Gamigin",
+  "rank": "Marquis",
+  "legions": 30,
+  "role": "soul_extractor",
+  "lore": "Gamigin appara\u00eet sous la forme d'un petit cheval ou d'un \u00e2ne. Il parle d'une voix rauque. Il enseigne les arts lib\u00e9raux et rend compte des \u00e2mes des noy\u00e9s, des morts en p\u00e9ch\u00e9, et de ceux qui habitent le Purgatoire.",
+  "lore_short": "Parle aux \u00e2mes des noy\u00e9s et des p\u00e9cheurs. Plus rapide sur les \u00e2mes corrompues.",
+  "sigil": "gamigin_sigil",
+  "stats": {
+    "extractionRadius": 100,
+    "extractionSpeedTicks": 12,
+    "hp": 15,
+    "bonusOnTainted": 2.0
+  },
+  "color": "#aabb44",
+  "shape": "circle"
+}

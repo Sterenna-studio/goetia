@@ -1,0 +1,17 @@
+{
+  "id": "bifrons",
+  "label": "Bifrons",
+  "rank": "Comte",
+  "legions": 6,
+  "role": "hauler",
+  "lore": "Bifrons enseigne les sciences des herbes, des pierres et des astres. Il d\u00e9place les corps des morts d'un lieu \u00e0 l'autre et allume des chandelles sur les tombes des d\u00e9funts.",
+  "lore_short": "Transport les corps. Allume les chandelles des tombes.",
+  "sigil": "bifrons_sigil",
+  "stats": {
+    "speed": 1.5,
+    "carryCapacity": 1,
+    "hp": 30
+  },
+  "color": "#9966cc",
+  "shape": "triangle"
+}
