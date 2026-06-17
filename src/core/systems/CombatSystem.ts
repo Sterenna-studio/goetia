@@ -1,6 +1,6 @@
 // ============================================================
 // GOETIA — CombatSystem (Leraje)
-// Ciblage, déplacement, attaque. Ennemis morts → Corpse.
+// Ciblage, déplacement, attaque. Ennemis morts → Corpse + score.
 // ============================================================
 
 import type { GameSystem, SimContext, WorldState, Enemy } from '../types';
@@ -11,6 +11,7 @@ const ATTACK_COOLDOWN_TICKS = 5;
 export class CombatSystem implements GameSystem {
   readonly name = 'CombatSystem';
   private cooldowns = new Map<string, number>();
+  public killCount = 0;
 
   update(_ctx: SimContext, world: WorldState): void {
     this._tickUnits(world);
@@ -64,6 +65,7 @@ export class CombatSystem implements GameSystem {
     for (const enemy of world.enemies.values()) {
       if (enemy.state !== 'dead') continue;
       if (enemy.dropsCorpse) spawnCorpse(world, enemy.pos, ['human'], 1.0);
+      this.killCount++;
       world.enemies.delete(enemy.id);
     }
     for (const unit of world.units.values()) {
@@ -72,5 +74,10 @@ export class CombatSystem implements GameSystem {
         world.units.delete(unit.id);
       }
     }
+  }
+
+  reset(): void {
+    this.killCount = 0;
+    this.cooldowns.clear();
   }
 }

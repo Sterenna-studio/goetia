@@ -1,6 +1,7 @@
 // ============================================================
 // GOETIA — GameScene
 // Shell Phaser : init monde, boucle update, rendu debug.
+// Clic gauche = spawn Bifrons. [R] = restart.
 // ============================================================
 
 import Phaser from 'phaser';
@@ -13,6 +14,7 @@ export class GameScene extends Phaser.Scene {
   private world!: WorldState;
   private sim!: Simulation;
   private gfx!: Phaser.GameObjects.Graphics;
+  private gameOverShown = false;
 
   constructor() { super({ key: 'GameScene' }); }
 
@@ -20,29 +22,73 @@ export class GameScene extends Phaser.Scene {
     this.world = createWorld();
     this.sim = new Simulation();
     this.gfx = this.add.graphics();
+    this.gameOverShown = false;
 
     initHUD();
 
-    // Scène test MVP
-    spawnPit(this.world, { x: 640, y: 360 });
-    spawnHauler(this.world, { x: 100, y: 200 }, 'bifrons');
-    spawnCorpse(this.world, { x: 300, y: 180 }, ['human']);
-    spawnCorpse(this.world, { x: 450, y: 400 }, ['soldier']);
-    spawnEnemy(this.world, { x: 1100, y: 300 });
-    spawnEnemy(this.world, { x: 1200, y: 450 });
+    // Scène initiale
+    spawnPit(this.world, { x: 580, y: 300 });
+    spawnPit(this.world, { x: 580, y: 440 });
+    spawnHauler(this.world, { x: 80, y: 250 }, 'bifrons');
+    spawnCorpse(this.world, { x: 280, y: 200 }, ['human']);
+    spawnCorpse(this.world, { x: 380, y: 420 }, ['soldier']);
+    spawnEnemy(this.world, { x: 1150, y: 280 });
+    spawnEnemy(this.world, { x: 1220, y: 430 });
 
+    // Clic gauche = spawn Bifrons à la position du clic
+    this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      if (this.sim.gameOver) return;
+      spawnHauler(this.world, { x: ptr.x, y: ptr.y }, 'bifrons');
+    });
+
+    // [R] = restart
     this.input.keyboard?.addKey('R').on('down', () => this.scene.restart());
   }
 
   update(_time: number, delta: number): void {
     this.sim.update(this.world, delta);
+
+    if (this.sim.gameOver && !this.gameOverShown) {
+      this.gameOverShown = true;
+      this._showGameOver();
+    }
+
     this._render();
-    updateHUD(this.world);
+    updateHUD(this.world, this.sim.waveSystem.currentWave, this.sim.score, this.sim.gameOver);
+  }
+
+  private _showGameOver(): void {
+    // Overlay game over
+    const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
+    overlay.setDepth(10);
+
+    this.add.text(640, 280, 'GAME OVER', {
+      fontSize: '64px',
+      color: '#cc4444',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(11);
+
+    this.add.text(640, 370, `Score : ${this.sim.score}`, {
+      fontSize: '32px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(11);
+
+    this.add.text(640, 440, '[R] Recommencer', {
+      fontSize: '22px',
+      color: '#ffaa44',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(11);
   }
 
   private _render(): void {
     const g = this.gfx;
     g.clear();
+
+    // Ligne de défense (x=0)
+    g.lineStyle(1, 0x440000, 0.4);
+    g.lineBetween(4, 0, 4, 720);
 
     // Fosses
     for (const pit of this.world.pits.values()) {
@@ -71,7 +117,7 @@ export class GameScene extends Phaser.Scene {
       g.fillCircle(soul.pos.x, soul.pos.y - 12, 4);
     }
 
-    // Haulers (Bifrons) — triangle violet
+    // Haulers (Bifrons)
     for (const hauler of this.world.haulers.values()) {
       g.fillStyle(hauler.carriedCorpseId ? 0xcc88ff : 0x9966cc);
       g.fillTriangle(
@@ -79,38 +125,27 @@ export class GameScene extends Phaser.Scene {
         hauler.pos.x - 8, hauler.pos.y + 8,
         hauler.pos.x + 8, hauler.pos.y + 8
       );
-      // Ligne vers la cible si en mouvement
       if (hauler.task.kind === 'pickup') {
         const c = this.world.corpses.get(hauler.task.corpseId);
-        if (c) {
-          g.lineStyle(1, 0x9966cc, 0.3);
-          g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y);
-        }
+        if (c) { g.lineStyle(1, 0x9966cc, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
       }
       if (hauler.task.kind === 'deliver') {
         const pit = this.world.pits.get(hauler.task.targetPitId);
-        if (pit) {
-          g.lineStyle(1, 0xffaa00, 0.3);
-          g.lineBetween(hauler.pos.x, hauler.pos.y, pit.pos.x, pit.pos.y);
-        }
+        if (pit) { g.lineStyle(1, 0xffaa00, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, pit.pos.x, pit.pos.y); }
       }
     }
 
-    // Unités (Leraje) — carré vert
+    // Unités (Leraje)
     for (const unit of this.world.units.values()) {
       g.fillStyle(0x44cc88);
       g.fillRect(unit.pos.x - 6, unit.pos.y - 6, 12, 12);
-      // Ligne vers la cible
       if (unit.targetId) {
         const target = this.world.enemies.get(unit.targetId);
-        if (target) {
-          g.lineStyle(1, 0x44cc88, 0.25);
-          g.lineBetween(unit.pos.x, unit.pos.y, target.pos.x, target.pos.y);
-        }
+        if (target) { g.lineStyle(1, 0x44cc88, 0.25); g.lineBetween(unit.pos.x, unit.pos.y, target.pos.x, target.pos.y); }
       }
     }
 
-    // Ennemis — cercle rouge + barre de vie
+    // Ennemis
     for (const enemy of this.world.enemies.values()) {
       g.fillStyle(0xcc4444);
       g.fillCircle(enemy.pos.x, enemy.pos.y, 10);
