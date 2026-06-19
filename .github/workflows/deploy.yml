@@ -3,6 +3,11 @@ name: Deploy GOETIA → nitro.sterenna.fr/goetia
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-goetia
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
@@ -24,12 +29,25 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.OVH_HOST }}
-          username: ${{ secrets.OVH_USER }}
-          key: ${{ secrets.OVH_SSH_KEY }}
-          source: "dist/*"
-          target: ${{ secrets.OVH_PATH }}/goetia/
-          strip_components: 1
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OVH_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.OVH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ensure remote dir
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.OVH_USER }}@${{ secrets.OVH_HOST }}" \
+            "mkdir -p ~/nitro/goetia"
+
+      - name: Deploy via rsync
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            dist/ \
+            "${{ secrets.OVH_USER }}@${{ secrets.OVH_HOST }}:~/nitro/goetia/"
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
