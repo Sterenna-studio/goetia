@@ -37,6 +37,7 @@ export class SpawnSystem implements GameSystem {
       maxHp: def.stats.hp,
       speed: def.stats.speed,
       damage: def.stats.damage,
+      attackTicks: 10,
       state: 'idle',
       createdAtTick: world.tick,
     };

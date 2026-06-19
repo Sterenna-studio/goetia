@@ -113,7 +113,6 @@ export class WaveSystem implements GameSystem {
   private nextTick      = FIRST_WAVE_TICK;
   private spawnQueue:   SpawnOrder[] = [];
   private spawnTick     = 0;
-  private _announceTick = 0;
 
   update(_ctx: SimContext, world: WorldState): void {
     const t = world.tick;
@@ -139,7 +138,6 @@ export class WaveSystem implements GameSystem {
           };
           this.spawnQueue   = buildWave(this.currentWave);
           this.spawnTick    = t + ANNOUNCE_TICKS;  // commence après l'annonce
-          this._announceTick = t;
           this.phase        = 'announcing';
         }
         break;
@@ -203,7 +201,6 @@ export class WaveSystem implements GameSystem {
     this.nextTick      = FIRST_WAVE_TICK;
     this.spawnQueue    = [];
     this.spawnTick     = 0;
-    this._announceTick = 0;
     currentAnnouncement = null;
   }
 }

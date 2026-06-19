@@ -21,6 +21,8 @@ import { installSkullCursor, removeSkullCursor } from '../ui/cursor';
 import { initZoneMaps, destroyZoneMaps, updateZoneMaps } from '../ui/zonemap';
 import { registerCamera, clearScorePopups } from '../ui/scorepopup';
 import { C } from '../ui/theme';
+import { renderCorpses } from '../render/CorpseRenderer';
+import { renderSouls } from '../render/SoulRenderer';
 import type { GameOverData } from './GameOverScene';
 
 export class GameScene extends Phaser.Scene {
@@ -199,27 +201,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    for (const corpse of this.world.corpses.values()) {
-      const r = corpse.blessed ? 5 : 7;
-      g.fillStyle(corpse.blessed ? C.BLESSED : C.CORPSE_FRESH, corpse.freshness01 * 0.8 + 0.2);
-      g.fillCircle(corpse.pos.x, corpse.pos.y, r);
-      g.lineStyle(1, corpse.blessed ? C.BLESSED : C.CORPSE, 0.5);
-      g.strokeCircle(corpse.pos.x, corpse.pos.y, r);
-      if (corpse.soulAttached)  { g.lineStyle(1, C.SOUL, 0.45); g.strokeCircle(corpse.pos.x, corpse.pos.y, 14); }
-      if (corpse.extractorId)   { g.lineStyle(1, C.EXTRACTOR_RING, 0.55); g.strokeCircle(corpse.pos.x, corpse.pos.y, 18); }
-      if (corpse.blessed) {
-        g.lineStyle(1, C.BLESSED, 0.5);
-        g.lineBetween(corpse.pos.x-5, corpse.pos.y, corpse.pos.x+5, corpse.pos.y);
-        g.lineBetween(corpse.pos.x, corpse.pos.y-5, corpse.pos.x, corpse.pos.y+5);
-      }
-    }
-
-    for (const soul of this.world.souls.values()) {
-      g.fillStyle(C.SOUL, soul.stability01 * 0.8 + 0.2);
-      g.fillCircle(soul.pos.x, soul.pos.y - 14, 4);
-      g.lineStyle(1, C.SOUL, soul.stability01 * 0.4);
-      g.strokeCircle(soul.pos.x, soul.pos.y - 14, 7);
-    }
+    renderCorpses(g, this.world.corpses.values(), this.world.tick);
+    renderSouls(g, this.world.souls.values(), this.world.corpses, this.world.tick);
 
     for (const hauler of this.world.haulers.values()) this._renderHauler(g, hauler);
 
@@ -286,17 +269,18 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(1, base, 0.35);
       g.strokeTriangle(hauler.pos.x-3, hauler.pos.y-11, hauler.pos.x-12, hauler.pos.y+9, hauler.pos.x+6, hauler.pos.y+9);
     } else if (isExtract) {
-      const ex = hauler.task.kind === 'extract';
-      g.fillStyle(ex ? 0xffffff : base, ex ? 0.95 : 0.8);
+      const extracting = hauler.task.kind === 'extract';
+      g.fillStyle(extracting ? 0xffffff : base, extracting ? 0.95 : 0.8);
       g.fillTriangle(hauler.pos.x, hauler.pos.y-11, hauler.pos.x+9, hauler.pos.y, hauler.pos.x, hauler.pos.y+11);
       g.fillTriangle(hauler.pos.x, hauler.pos.y-11, hauler.pos.x-9, hauler.pos.y, hauler.pos.x, hauler.pos.y+11);
       g.lineStyle(1, base, 0.3); g.strokeCircle(hauler.pos.x, hauler.pos.y, 13);
-      if (ex) {
-        const c = this.world.corpses.get(hauler.task.corpseId);
+      if (hauler.task.kind === 'extract') {
+        const task = hauler.task;
+        const c = this.world.corpses.get(task.corpseId);
         if (c) { g.lineStyle(1, base, 0.3); g.lineBetween(hauler.pos.x, hauler.pos.y, c.pos.x, c.pos.y); }
         const total = hauler.demonName === 'gamigin' ? 20 : 40;
-        const pct   = 1 - hauler.task.ticksLeft / total;
-        g.fillStyle(base, 0.85);    g.fillRect(hauler.pos.x-12, hauler.pos.y+14, 24*pct, 3);
+        const pct   = Math.max(0, Math.min(1, 1 - task.ticksLeft / total));
+        g.fillStyle(base, 0.85);    g.fillRect(hauler.pos.x-12, hauler.pos.y+14, 24 * pct, 3);
         g.lineStyle(1, base, 0.25); g.strokeRect(hauler.pos.x-12, hauler.pos.y+14, 24, 3);
       }
     } else {

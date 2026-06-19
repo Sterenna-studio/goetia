@@ -6,6 +6,9 @@
 
 import { EventBus } from './events';
 
+type CorpseDeliveredEvent =
+  Extract<import('./events').GoetiaEvent, { type: 'CORPSE_DELIVERED' }>;
+
 const BASE_DELIVER = 10;
 
 const FRESHNESS_MULT = (f: number) => 0.5 + f * 1.5; // 0.5 → 2.0
@@ -44,14 +47,12 @@ export class ScoringSystem {
   scoreMult = 1.0;
 
   install(): void {
-    EventBus.on('CORPSE_DELIVERED', ev => this._onDeliver(ev));
+    EventBus.on<CorpseDeliveredEvent>('CORPSE_DELIVERED', ev => this._onDeliver(ev));
   }
 
   uninstall(): void { EventBus.clear(); this._combo = 0; }
 
-  private _onDeliver(
-    ev: Extract<import('./events').GoetiaEvent, { type: 'CORPSE_DELIVERED' }>
-  ): void {
+  private _onDeliver(ev: CorpseDeliveredEvent): void {
     this._combo++;
     const combo = this._combo >= 3 ? this._combo : 0;
 
