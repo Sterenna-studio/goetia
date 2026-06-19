@@ -2,6 +2,7 @@
 // GOETIA — GameScene v2
 // + registerCamera pour les popups monde→écran
 // + sync scoreMult depuis upgrades
+// — Game Over délégué à GameOverScene
 // ============================================================
 
 import Phaser from 'phaser';
@@ -20,6 +21,7 @@ import { installSkullCursor, removeSkullCursor } from '../ui/cursor';
 import { initZoneMaps, destroyZoneMaps, updateZoneMaps } from '../ui/zonemap';
 import { registerCamera, clearScorePopups } from '../ui/scorepopup';
 import { C, CSS } from '../ui/theme';
+import type { GameOverData } from './GameOverScene';
 
 export class GameScene extends Phaser.Scene {
   private world!:         WorldState;
@@ -39,7 +41,6 @@ export class GameScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#050a05');
 
-    // Enregistre la caméra pour convertir coords monde → écran
     registerCamera(this.cameras.main);
 
     installSkullCursor();
@@ -53,7 +54,6 @@ export class GameScene extends Phaser.Scene {
       () => this.sim.score,
       (id) => {
         this.sim.buyUpgrade(id, this.world);
-        // Sync scoreMult dans ScoringSystem
         this.sim.scoring.scoreMult = this.sim.upgrades.scoreMult;
       },
     );
@@ -119,10 +119,26 @@ export class GameScene extends Phaser.Scene {
 
     if (this.sim.gameOver && !this.gameOverShown) {
       this.gameOverShown = true;
-      const best = saveBest(this.sim.score, this.sim.waveSystem.currentWave);
-      saveRun(this.sim.score, this.sim.waveSystem.currentWave, this.sim.upgrades.getPurchased().length);
-      this._showGameOver(best.score, best.wave);
+      const best    = saveBest(this.sim.score, this.sim.waveSystem.currentWave);
+      const wave    = this.sim.waveSystem.currentWave;
+      const score   = this.sim.score;
+      saveRun(score, wave, this.sim.upgrades.getPurchased().length);
+
+      const data: GameOverData = {
+        score,
+        wave,
+        upgrades:  this.sim.upgrades.getPurchased().length,
+        isRecord:  score >= best.score && wave > 0,
+        bestScore: best.score,
+        bestWave:  best.wave,
+        demons:    this.world.haulers.size,
+      };
+
+      // Nettoyage des overlays avant de partir
+      this._destroyOverlays();
+      this.scene.start('GameOverScene', data);
     }
+
     this._render();
     updateHUD(this.world, this.sim.waveSystem.currentWave, this.sim.score, this.sim.gameOver);
   }
@@ -308,22 +324,6 @@ export class GameScene extends Phaser.Scene {
      'goetia-hud-style','goetia-codex-style','goetia-radial-style','goetia-hud-btns-style',
      'goetia-upgrades-style','goetia-pause-style','goetia-wave-announce','hud-rest-bar',
      'goetia-cursor-style'].forEach(id => document.getElementById(id)?.remove());
-  }
-
-  private _showGameOver(bestScore: number, bestWave: number): void {
-    const score = this.sim.score;
-    const wave  = this.sim.waveSystem.currentWave;
-    const isNR  = score >= bestScore && wave > 0;
-    this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.9).setDepth(10);
-    this.add.text(640, 180, 'GOETIA', { fontSize:'14px', color:'#1a4422', fontFamily:'monospace', letterSpacing:20 }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 230, 'GAME OVER', { fontSize:'52px', color:'#cc0000', fontFamily:'monospace', fontStyle:'bold' }).setOrigin(0.5).setDepth(11);
-    if (isNR) this.add.text(640, 292, '\u2605 NOUVEAU RECORD \u2605', { fontSize:'14px', color:'#33ff66', fontFamily:'monospace', letterSpacing:10 }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 336, `${score} pts`, { fontSize:'34px', color:'#33ff66', fontFamily:'monospace', fontStyle:'bold' }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 378, `vague ${wave}`, { fontSize:'18px', color:'#9933ff', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 412, `${this.sim.upgrades.getPurchased().length} rituels`, { fontSize:'12px', color:'#2a4433', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 450, '\u2015'.repeat(30), { fontSize:'10px', color:'#1a3320', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 468, `record : ${bestScore} pts  |  vague ${bestWave}`, { fontSize:'12px', color:'#2a4433', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
-    this.add.text(640, 526, '[R] recommencer', { fontSize:'16px', color:'#33ff66', fontFamily:'monospace' }).setOrigin(0.5).setDepth(11);
   }
 }
 
