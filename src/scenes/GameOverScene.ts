@@ -5,7 +5,7 @@
 // ============================================================
 
 import Phaser from 'phaser';
-import { loadBest, loadHistory } from '../core/persistence';
+import { loadHistory } from '../core/persistence';
 import { CSS } from '../ui/theme';
 import { installSkullCursor, removeSkullCursor } from '../ui/cursor';
 

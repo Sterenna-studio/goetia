@@ -77,13 +77,13 @@ export function initHUD(): void {
   hud.innerHTML = `
     <span id="hud-wave">Vague <span class="hud-val" id="hud-wave-n">0</span></span>
     <span class="hud-sep">│</span>
-    <span>Score <span class="hud-val" id="hud-score">0</span></span>
+    <span>Score <span class="hud-val" id="hud-score">0</span></span>
     <span class="hud-sep">│</span>
-    <span>Âmes <span class="hud-val" id="hud-souls">0</span></span>
+    <span>Âmes <span class="hud-val" id="hud-souls">0</span></span>
     <span class="hud-sep">│</span>
-    <span>Corps <span class="hud-val" id="hud-corpses">0</span></span>
+    <span>Corps <span class="hud-val" id="hud-corpses">0</span></span>
     <span class="hud-sep">│</span>
-    <span>Ennemis <span class="hud-val" id="hud-enemies">0</span></span>
+    <span>Ennemis <span class="hud-val" id="hud-enemies">0</span></span>
     <span class="hud-sep">│</span>
     <span id="hud-pits"></span>
     <span style="flex:1"></span>
@@ -173,7 +173,7 @@ export function updateHUD(
   if (pitsEl) {
     const pits = [...world.pits.values()];
     pitsEl.innerHTML = pits.map(p =>
-      `<div class="hud-pit${p.state !== 'idle' ? ' active' : ''}"></div>`
+      `<div class="hud-pit${p.state !== 'empty' ? ' active' : ''}"></div>`
     ).join('');
   }
 

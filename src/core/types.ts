@@ -66,6 +66,8 @@ export interface Unit {
   maxHp: number;
   speed: number;
   damage: number;
+  /** Cadence d'attaque en ticks (ex: 10 = 1 attaque toutes les 10 ticks) */
+  attackTicks: number;
   state: 'idle' | 'move' | 'attack' | 'dead';
   targetId?: EntityId;
   createdAtTick: Tick;

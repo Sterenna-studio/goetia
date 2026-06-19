@@ -14,7 +14,7 @@
 //   (Bathin ignore le HaulingSystem standard)
 // ============================================================
 
-import type { GameSystem, SimContext, WorldState, Hauler, Corpse } from '../types';
+import type { GameSystem, SimContext, WorldState, Hauler } from '../types';
 import { getAvailableCorpses, getEmptyPits, moveToward, dist } from '../world';
 
 const PICKUP_RANGE  = 8;

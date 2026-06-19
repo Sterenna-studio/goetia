@@ -20,7 +20,7 @@ import { initParticles, destroyParticles, fxPickup, fxDeliver, fxBlink, fxDust, 
 import { installSkullCursor, removeSkullCursor } from '../ui/cursor';
 import { initZoneMaps, destroyZoneMaps, updateZoneMaps } from '../ui/zonemap';
 import { registerCamera, clearScorePopups } from '../ui/scorepopup';
-import { C, CSS } from '../ui/theme';
+import { C } from '../ui/theme';
 import type { GameOverData } from './GameOverScene';
 
 export class GameScene extends Phaser.Scene {
