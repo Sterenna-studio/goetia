@@ -9,7 +9,7 @@ import Phaser from 'phaser';
 import { createWorld, spawnCorpse, spawnHauler, spawnPit, spawnEnemy } from '../core/world';
 import { Simulation } from '../core/sim';
 import type { WorldState, DemonName, Hauler } from '../core/types';
-import { initHUD, initHUDButtons, updateHUD, updateActiveDemon, updatePauseButton } from '../ui/hud';
+import { initHUD, initHUDButtons, updateHUD, updateActiveDemon, updatePauseButton, showOnboardingHint, dismissOnboardingHint } from '../ui/hud';
 import { initCodex, toggleCodex, isCodexVisible } from '../ui/codex';
 import { initRadial, showRadial, hideRadial, isRadialVisible, getSelectedDemon, selectDemonByKey } from '../ui/radial';
 import { initUpgradePanel, toggleUpgradePanel, isUpgradePanelVisible } from '../ui/upgradepanel';
@@ -74,6 +74,8 @@ export class GameScene extends Phaser.Scene {
     const best = loadBest();
     if (best.score > 0) updateBestHUD(best.score, best.wave);
 
+    showOnboardingHint();
+
     spawnPit(this.world,    { x: 580, y: 300 });
     spawnPit(this.world,    { x: 580, y: 440 });
     spawnHauler(this.world, { x: 80,  y: 250 }, 'bifrons');
@@ -86,6 +88,7 @@ export class GameScene extends Phaser.Scene {
       if (this.sim.gameOver || isPaused() || isCodexVisible() || isUpgradePanelVisible()) return;
       if (ptr.rightButtonDown()) { showRadial(ptr.x, ptr.y); return; }
       if (isRadialVisible()) { hideRadial(); return; }
+      dismissOnboardingHint();
       spawnHauler(this.world, { x: ptr.x, y: ptr.y }, getSelectedDemon().id as DemonName);
     });
 
@@ -142,7 +145,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this._render();
-    updateHUD(this.world, this.sim.waveSystem.currentWave, this.sim.score, this.sim.gameOver);
+    const waveStatus = this.sim.waveSystem.getStatus(this.world.tick, this.world);
+    updateHUD(this.world, this.sim.waveSystem.currentWave, this.sim.score, this.sim.gameOver, waveStatus);
   }
 
   private _emitParticles(): void {
@@ -306,7 +310,7 @@ export class GameScene extends Phaser.Scene {
     clearScorePopups();
     ['goetia-hud','goetia-codex','goetia-radial','goetia-upgrades','goetia-pause','hud-best',
      'goetia-hud-style','goetia-codex-style','goetia-radial-style','goetia-hud-btns-style',
-     'goetia-upgrades-style','goetia-pause-style','goetia-wave-announce','hud-rest-bar',
+     'goetia-upgrades-style','goetia-pause-style','goetia-wave-announce','hud-rest-bar','goetia-onboard-hint',
      'goetia-cursor-style'].forEach(id => document.getElementById(id)?.remove());
   }
 }

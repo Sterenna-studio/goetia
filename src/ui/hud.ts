@@ -6,10 +6,12 @@
 import type { WorldState } from '../core/types';
 import { CSS } from './theme';
 import { currentAnnouncement } from '../core/systems/WaveSystem';
+import type { WaveStatus } from '../core/systems/WaveSystem';
 
 const HUD_ID       = 'goetia-hud';
 const STYLE_ID     = 'goetia-hud-style';
 const ANNOUNCE_ID  = 'goetia-wave-announce';
+const HINT_ID      = 'goetia-onboard-hint';
 
 // ── Init ─────────────────────────────────────────────────
 export function initHUD(): void {
@@ -159,6 +161,7 @@ export function updateHUD(
   wave: number,
   score: number,
   gameOver: boolean,
+  status?: WaveStatus,
 ): void {
   const q = (id: string) => document.getElementById(id);
   q('hud-wave-n') && (q('hud-wave-n')!.textContent = String(wave));
@@ -167,6 +170,9 @@ export function updateHUD(
   q('hud-corpses')&& (q('hud-corpses')!.textContent = String(world.corpses.size));
   q('hud-enemies')&& (q('hud-enemies')!.textContent =
     String([...world.enemies.values()].filter(e => e.state !== 'dead').length));
+
+  // ── Indicateur de phase de vague (texte + barre de progression) ──
+  if (status && !gameOver) updateWavePhase(status);
 
   // Fosses
   const pitsEl = q('hud-pits');
@@ -192,7 +198,70 @@ export function updateHUD(
   if (gameOver && q('hud-phase')) {
     q('hud-phase')!.textContent = '■ GAME OVER';
     q('hud-phase')!.style.color = '#cc0000';
+    const fill = q('hud-rest-fill');
+    if (fill) { fill.style.width = '100%'; fill.style.background = '#cc0000'; }
   }
+}
+
+// ── Indicateur de phase de vague ──────────────────────────
+function updateWavePhase(s: WaveStatus): void {
+  const phaseEl = document.getElementById('hud-phase');
+  const fill    = document.getElementById('hud-rest-fill');
+  if (!phaseEl || !fill) return;
+
+  if (s.countdown) {
+    // Décompte avant la prochaine vague — la barre se remplit en anticipation.
+    const secs = Math.max(0, Math.ceil(s.secondsToNext));
+    phaseEl.textContent = s.nextIsBoss
+      ? `⚠ BOSS dans ${secs}s`
+      : `⏳ Prochaine vague — ${secs}s`;
+    phaseEl.style.color  = s.nextIsBoss ? '#ff6644' : '#2a8844';
+    fill.style.width      = `${Math.round(s.progress * 100)}%`;
+    fill.style.background = s.nextIsBoss ? '#ff3300' : CSS.ACCENT;
+  } else {
+    // Assaut en cours.
+    const n = s.enemiesAlive;
+    phaseEl.textContent = `⚔ Vague ${s.wave} · ${n} ennemi${n > 1 ? 's' : ''}`;
+    phaseEl.style.color  = '#cc6633';
+    fill.style.width      = '100%';
+    fill.style.background = '#cc3300';
+  }
+}
+
+// ── Rappel des contrôles (onboarding non-bloquant) ────────
+export function showOnboardingHint(): void {
+  document.getElementById(HINT_ID)?.remove();
+
+  const hint = document.createElement('div');
+  hint.id = HINT_ID;
+  hint.style.cssText = [
+    'position:fixed', 'left:50%', 'bottom:84px', 'transform:translateX(-50%)',
+    'z-index:150', 'pointer-events:none',
+    "font-family:'Courier New',monospace", 'font-size:13px', 'letter-spacing:0.06em',
+    'color:#bdf5cd', 'text-align:center', 'line-height:1.7',
+    'padding:10px 22px', 'border:1px solid rgba(51,255,102,0.28)', 'border-radius:12px',
+    'background:linear-gradient(180deg,rgba(0,12,4,0.92),rgba(0,0,0,0.86))',
+    'box-shadow:0 0 22px rgba(51,255,102,0.14)',
+    'opacity:0', 'transition:opacity 0.4s ease',
+  ].join(';');
+  hint.innerHTML = `
+    <div><span style="color:${CSS.ACCENT}">Clic gauche</span> : invoquer un démon &nbsp;·&nbsp;
+    <span style="color:${CSS.ACCENT2}">Clic droit</span> : changer de démon</div>
+    <div style="font-size:11px;color:#3a6644;margin-top:3px">
+      Acheminez les corps vers les <span style="color:${CSS.ACCENT}">fosses</span> ◇ &nbsp;·&nbsp; ne laissez aucun ennemi atteindre la gauche</div>
+  `;
+  document.body.appendChild(hint);
+  requestAnimationFrame(() => { hint.style.opacity = '1'; });
+
+  // Disparition automatique après ~9 s si le joueur n'a rien fait.
+  window.setTimeout(() => dismissOnboardingHint(), 9000);
+}
+
+export function dismissOnboardingHint(): void {
+  const hint = document.getElementById(HINT_ID);
+  if (!hint) return;
+  hint.style.opacity = '0';
+  window.setTimeout(() => hint.remove(), 400);
 }
 
 // ── Helpers ───────────────────────────────────────────────

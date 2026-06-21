@@ -94,6 +94,17 @@ export interface WaveAnnouncement {
 }
 export let currentAnnouncement: WaveAnnouncement | null = null;
 
+// ── État de vague pour le HUD ─────────────────────────────
+export interface WaveStatus {
+  phase:        'waiting' | 'announcing' | 'spawning' | 'resting';
+  wave:         number;   // vague en cours (0 avant la première)
+  enemiesAlive: number;
+  countdown:    boolean;  // true = on décompte vers la prochaine vague
+  secondsToNext: number;  // secondes avant la prochaine vague (si countdown)
+  progress:     number;   // 0–1, remplissage de la barre vers la prochaine vague
+  nextIsBoss:   boolean;
+}
+
 // ── Cadavres laissés par les ennemis ───────────────────────
 // Appelé depuis CombatSystem quand un ennemi passe state='dead'
 export function leaveCorpse(world: WorldState, pos: { x: number; y: number }, type: EnemyType): void {
@@ -111,6 +122,7 @@ export class WaveSystem implements GameSystem {
   public  currentWave   = 0;
   private phase: 'waiting' | 'announcing' | 'spawning' | 'resting' = 'waiting';
   private nextTick      = FIRST_WAVE_TICK;
+  private phaseStart    = 0;   // tick d'entrée dans la phase d'attente courante
   private spawnQueue:   SpawnOrder[] = [];
   private spawnTick     = 0;
 
@@ -153,6 +165,7 @@ export class WaveSystem implements GameSystem {
           // Toute la vague est spawnée — on attend qu'elle soit vidée
           this.phase = 'resting';
           this.nextTick = t + REST_TICKS;
+          this.phaseStart = t;
           break;
         }
         if (t % SPAWN_CADENCE === 0) {
@@ -165,8 +178,9 @@ export class WaveSystem implements GameSystem {
       case 'resting': {
         const alive = [...world.enemies.values()].filter(e => e.state !== 'dead').length;
         if (alive === 0 || t >= this.nextTick) {
-          this.phase    = 'waiting';
-          this.nextTick = t + (alive === 0 ? 40 : 10); // bonus si tout nettoyé
+          this.phase      = 'waiting';
+          this.nextTick   = t + (alive === 0 ? 40 : 10); // bonus si tout nettoyé
+          this.phaseStart = t;
         }
         break;
       }
@@ -186,19 +200,40 @@ export class WaveSystem implements GameSystem {
     leaveCorpse(world, pos, type as EnemyType);
   }
 
-  get phase_(): string { return this.phase; }
+  /** État synthétique pour le HUD (compte à rebours / phase d'assaut). */
+  getStatus(tick: number, world: WorldState): WaveStatus {
+    const enemiesAlive = [...world.enemies.values()].filter(e => e.state !== 'dead').length;
+    const nextWave   = this.currentWave + 1;
+    const nextIsBoss = nextWave % 10 === 0;
 
-  /** Pourcentage de progression du repos [0–1] pour la barre HUD. */
-  get restProgress(): number {
-    if (this.phase !== 'resting') return 1;
-    // not exposed directly, HUD uses waveSystem.restProgress via sim
-    return 0;
+    // Phase de décompte : avant la 1ʳᵉ vague, ou repos une fois le champ nettoyé.
+    const counting = this.phase === 'waiting' || (this.phase === 'resting' && enemiesAlive === 0);
+
+    let secondsToNext = 0;
+    let progress      = 1;
+    if (counting) {
+      const remain = Math.max(0, this.nextTick - tick);
+      secondsToNext = remain / 10;                       // 10 ticks = 1 s
+      const window  = Math.max(1, this.nextTick - this.phaseStart);
+      progress      = Math.min(1, Math.max(0, (tick - this.phaseStart) / window));
+    }
+
+    return {
+      phase: this.phase,
+      wave:  this.currentWave,
+      enemiesAlive,
+      countdown: counting,
+      secondsToNext,
+      progress,
+      nextIsBoss,
+    };
   }
 
   reset(): void {
     this.currentWave   = 0;
     this.phase         = 'waiting';
     this.nextTick      = FIRST_WAVE_TICK;
+    this.phaseStart    = 0;
     this.spawnQueue    = [];
     this.spawnTick     = 0;
     currentAnnouncement = null;
